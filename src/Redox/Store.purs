@@ -1,4 +1,4 @@
-module Redox.Internals where
+module Redox.Store where
 
 import Prim
 import Prelude

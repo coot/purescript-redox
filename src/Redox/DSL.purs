@@ -1,13 +1,14 @@
 module Redox.DSL where
 
 import Prelude
-import Redox.Internals
 import Control.Monad.Aff (Aff, runAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (log, CONSOLE)
 import Control.Monad.Eff.Exception (Error)
 import Data.Foldable (sequence_)
 import Data.Functor (mapFlipped)
+
+import Redox.Store
 
 -- | Dispatch dsl commands that will be interpreted in Aff monad.
 -- | You have to write your own DSL for the state changes and an interpreter for it.
