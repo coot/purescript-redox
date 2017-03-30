@@ -17,10 +17,14 @@ import Test.Unit.Assert (assert)
 data Command a
   = Increment Int a
   | Decrement Int a
+  | IncrementSync Int a
+  | DecrementSync Int a
 
 instance functorCommand :: Functor Command where
   map f (Increment i a) = Increment i (f a)
   map f (Decrement i a) = Decrement i (f a)
+  map f (IncrementSync i a) = IncrementSync i (f a)
+  map f (DecrementSync i a) = DecrementSync i (f a)
 
 type DSL a = Free Command a
 
@@ -30,15 +34,25 @@ increment i = liftF (Increment i unit)
 decrement :: Int -> DSL Unit
 decrement i = liftF (Decrement i unit)
 
+incrementSync :: Int -> DSL Unit
+incrementSync i = liftF (IncrementSync i unit)
+
+decrementSync :: Int -> DSL Unit
+decrementSync i = liftF (DecrementSync i unit)
+
 newtype Run eff a = Run
   { increment :: Int -> Aff eff a
   , decrement :: Int -> Aff eff a
+  , incrementSync :: Int -> Aff eff a
+  , decrementSync :: Int -> Aff eff a
   }
 
 instance functorRun :: Functor (Run eff) where
-  map f (Run { increment, decrement }) = 
+  map f (Run { increment, decrement, incrementSync, decrementSync }) = 
     Run { increment: map f <<< increment
         , decrement: map f <<< decrement
+        , incrementSync: map f <<< incrementSync
+        , decrementSync: map f <<< decrementSync
         }
 
 type Interp eff a = Cofree (Run eff) a
@@ -47,7 +61,11 @@ mkInterp :: forall eff. Int -> Interp eff Int
 mkInterp state = unfoldCofree state id next
   where
     next :: Int -> Run eff Int
-    next st = Run { increment: increment st, decrement: decrement st }
+    next st = Run { increment: increment st
+                  , decrement: decrement st
+                  , incrementSync: incrementSync st
+                  , decrementSync: decrementSync st
+                  }
 
     increment :: Int -> Int -> Aff eff Int
     increment a b = later $ pure (a + b)
@@ -55,9 +73,17 @@ mkInterp state = unfoldCofree state id next
     decrement :: Int -> Int -> Aff eff Int
     decrement a b = later $ pure (a - b)
 
+    incrementSync :: Int -> Int -> Aff eff Int
+    incrementSync a b = pure (a + b)
+
+    decrementSync :: Int -> Int -> Aff eff Int
+    decrementSync a b = pure (a - b)
+
 pair :: forall eff x y. Command (x -> y) -> Run eff x -> Aff eff y
 pair (Increment a next) (Run interp) = next <$> (interp.increment a)
 pair (Decrement a next) (Run interp) = next <$> (interp.decrement a)
+pair (IncrementSync a next) (Run interp) = next <$> (interp.incrementSync a)
+pair (DecrementSync a next) (Run interp) = next <$> (interp.decrementSync a)
 
 runInterp :: forall eff. DSL (Int -> Int) -> Int -> Aff eff Int
 runInterp cmds state = exploreM pair cmds $ mkInterp state
@@ -66,6 +92,12 @@ cmds :: DSL (Int -> Int)
 cmds = do 
   increment 10
   decrement 5
+  pure id
+
+cmds2 :: DSL (Int -> Int)
+cmds2 = do
+  incrementSync 10
+  decrementSync 5
   pure id
 
 testSuite :: forall eff. TestSuite (redox :: REDOX | eff)
@@ -92,3 +124,16 @@ testSuite =
         cmds
       state <- later' 10 $ liftEff $ getState store
       assert ("store failed to update: " <> show state) (state == 5)
+
+    test "run sync commands" $ do
+      store <- liftEff $ mkStore 0
+      liftEff $ dispatch
+        (\_ _ -> pure unit)
+        runInterp
+        store
+        cmds2
+      state <- liftEff $ getState store
+      assert ("store should update " <> show state) (state == 5)
+
+    -- note: if one mixes sync and async commands, they will all run when the
+    -- last async command resolves - due to how Aff bind works.
