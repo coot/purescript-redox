@@ -18,11 +18,16 @@
     "purescript-prelude": "^2.5.0",
     "purescript-console": "^2.0.0",
     "purescript-freet": "^2.1.0",
-    "purescript-free": "^3.5.1",
+    "purescript-free": "git://github.com/purescript/purescript-free#e3d58a2f00d560a621fc9a85c1b4dc12a954ef1c",
     "purescript-refs": "^2.0.0",
     "purescript-aff": "^2.0.3"
   },
   "devDependencies": {
-    "purescript-psci-support": "^2.0.0"
+    "purescript-psci-support": "^2.0.0",
+    "purescript-test-unit": "^10.1.0"
+  },
+  "resolutions": {
+    "purescript-lists": "^3.4.0",
+    "purescript-free": "e3d58a2f00d560a621fc9a85c1b4dc12a954ef1c"
   }
 }
