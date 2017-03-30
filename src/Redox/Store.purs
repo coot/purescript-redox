@@ -10,7 +10,7 @@ foreign import data REDOX :: !
 
 foreign import data Store :: Type -> Type
 
-foreign import createStore :: forall state eff. state -> Eff (redox :: REDOX | eff) (Store state)
+foreign import mkStore :: forall state eff. state -> Eff (redox :: REDOX | eff) (Store state)
 
 foreign import subscribe :: forall state eff. Store state -> (state -> Eff (redox :: REDOX | eff) Unit) -> Eff (redox :: REDOX | eff) Unit
 

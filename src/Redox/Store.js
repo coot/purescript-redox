@@ -11,7 +11,7 @@ Store.prototype.unsubscribe = function(fn) {
   this.subscriptions = this.subscriptions.filter(function(fn_) {return fn_ !== fn})
 }
 
-exports.createStore = function createStore(state) {
+exports.mkStore = function mkStore(state) {
   return function() {
     return new Store(state)
   }
