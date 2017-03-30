@@ -4,10 +4,10 @@
     "Marcin Szamotulski <coot@riseup.net>"
   ],
   "license": "MIT",
-  "repository": {                                                          
-    "type": "git",                                                         
-    "url": "git://github.com/coot/purescript-redox.git"            
-  }, 
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/coot/purescript-redox.git"
+  },
   "ignore": [
     "**/.*",
     "node_modules",
@@ -19,7 +19,8 @@
     "purescript-console": "^2.0.0",
     "purescript-freet": "^2.1.0",
     "purescript-free": "^3.5.1",
-    "purescript-refs": "^2.0.0"
+    "purescript-refs": "^2.0.0",
+    "purescript-aff": "^2.0.3"
   },
   "devDependencies": {
     "purescript-psci-support": "^2.0.0"

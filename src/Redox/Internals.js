@@ -18,7 +18,15 @@ exports.createStore = function createStore(state) {
 }
 
 exports.getState = function(store) {
-  return store.state
+  return function() {
+    return store.state
+  }
+}
+
+exports.getSubs = function(store) {
+  return function() {
+    return store.subscriptions
+  }
 }
 
 exports.subscribe = function(store) {
@@ -39,10 +47,9 @@ exports.unsubscribe = function(store) {
   }
 }
 
-exports.mapStore = function(store) {
-  return function(fn) {
-    return function() {
-      store.state = fn(store.state)
-    }
+exports.mapStore = function(fn) {
+  return function(store) {
+    store.state = fn(store.state)
+    return store
   }
 }
