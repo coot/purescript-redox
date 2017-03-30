@@ -5,7 +5,7 @@ module Test.DSL
 import Prelude
 import Data.Array as A
 import Control.Comonad.Cofree (Cofree, exploreM, unfoldCofree, (:<))
-import Control.Monad.Aff (Aff)
+import Control.Monad.Aff (Aff, later, later')
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (log)
 import Control.Monad.Free (Free, liftF)
@@ -30,7 +30,6 @@ increment i = liftF (Increment i unit)
 decrement :: Int -> DSL Unit
 decrement i = liftF (Decrement i unit)
 
-
 newtype Run eff a = Run
   { increment :: Int -> Aff eff a
   , decrement :: Int -> Aff eff a
@@ -51,10 +50,10 @@ mkInterp state = unfoldCofree state id next
     next st = Run { increment: increment st, decrement: decrement st }
 
     increment :: Int -> Int -> Aff eff Int
-    increment a b = pure (a + b)
+    increment a b = later $ pure (a + b)
 
     decrement :: Int -> Int -> Aff eff Int
-    decrement a b = pure (a - b)
+    decrement a b = later $ pure (a - b)
 
 pair :: forall eff x y. Command (x -> y) -> Run eff x -> Aff eff y
 pair (Increment a next) (Run interp) = next <$> (interp.increment a)
@@ -71,8 +70,10 @@ cmds = do
 
 testSuite :: forall eff. TestSuite (redox :: REDOX | eff)
 testSuite =
+
   suite "DSL" do
-    test "increment store" $ do
+
+    test "update store asynchronously" $ do
       store <- liftEff $ mkStore 0
       liftEff $ dispatch
         (\_ _ -> pure unit)
@@ -80,4 +81,14 @@ testSuite =
         store
         cmds
       state <- liftEff $ getState store
-      assert ("store failed to update: " <> show state) $ state == 5
+      assert "store updated synchronously" (state == 0)
+
+    test "update store" $ do
+      store <- liftEff $ mkStore 0
+      liftEff $ dispatch
+        (\_ _ -> pure unit)
+        runInterp
+        store
+        cmds
+      state <- later' 10 $ liftEff $ getState store
+      assert ("store failed to update: " <> show state) (state == 5)
