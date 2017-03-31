@@ -43,8 +43,16 @@ testSuite = do
           liftEff $ subscribe store fn
 
           subs <- liftEff $ getSubs store
-          assert ("store should have one subscription") $ (A.length subs == 1)
+          assert ("store should have one subscription") (A.length subs == 1)
           case A.head subs of
             Nothing -> failure "ups..."
-            Just fn' -> assert ("it should be the supplied fn") $ (eqFns fn fn')
+            Just fn' -> assert ("it should be the supplied fn") $ eqFns fn fn'
 
+      test "remove subscription" $
+        let fn = const (pure unit :: Eff (redox :: REDOX | eff) Unit)
+        in do
+          store <- liftEff $ mkStore 0
+          liftEff $ subscribe store fn
+          liftEff $ unsubscribe store fn
+          subs <- liftEff $ getSubs store
+          assert ("store should not have any subscriptions") (A.length subs == 0)
