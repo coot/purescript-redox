@@ -18,7 +18,7 @@ foreign import subscribe :: forall state eff. Store state -> (state -> Eff (redo
 
 foreign import unsubscribe :: forall state eff. Store state -> (state -> Eff (redox :: REDOX | eff ) Unit) -> Eff (redox :: REDOX | eff) Unit
 
-foreign import mapStore :: forall state state'. (state -> state') -> Store state -> Store state'
+foreign import mapStore :: forall state state' eff. (state -> state') -> Store state -> Eff (redox :: REDOX | eff) (Store state')
 
 foreign import setState :: forall state eff. Store state -> state -> Eff (redox :: REDOX | eff) (Store state)
 
@@ -27,7 +27,7 @@ foreign import getState :: forall state eff. Store state -> Eff (redox :: REDOX 
 foreign import getSubs :: forall state eff. Store state -> Eff (redox :: REDOX | eff) (Array (state -> Eff (redox :: REDOX | eff) Unit))
 
 instance functorStore :: Functor Store where
-  map fn store = mapStore fn store
+  map fn store = unsafePerformEff $ mapStore fn store
 
 performRedoxEff :: forall a. Eff (redox :: REDOX) a -> a
 performRedoxEff = unsafeCoerce unsafePerformEff

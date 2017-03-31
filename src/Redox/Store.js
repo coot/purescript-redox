@@ -58,7 +58,9 @@ exports.unsubscribe = function(store) {
 
 exports.mapStore = function(fn) {
   return function(store) {
-    store.state = fn(store.state)
-    return store
+    return function() {
+      store.state = fn(store.state)
+      return store
+    }
   }
 }
