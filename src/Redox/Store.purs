@@ -12,8 +12,11 @@ foreign import data REDOX :: !
 
 foreign import data Store :: Type -> Type
 
+-- | Make store with initial state.
 foreign import mkStore :: forall state eff. state -> Eff (redox :: REDOX | eff) (Store state)
 
+-- | Subscribe to store updates.  Not that store updates are not run by the
+-- | store itself.  That is left to dispatch implementations.
 foreign import subscribe :: forall state eff. Store state -> (state -> Eff (redox :: REDOX | eff) Unit) -> Eff (redox :: REDOX | eff) Unit
 
 foreign import unsubscribe :: forall state eff. Store state -> (state -> Eff (redox :: REDOX | eff ) Unit) -> Eff (redox :: REDOX | eff) Unit
@@ -24,6 +27,7 @@ foreign import setState :: forall state eff. Store state -> state -> Eff (redox 
 
 foreign import getState :: forall state eff. Store state -> Eff (redox :: REDOX | eff) state
 
+-- | Get subscriptions.
 foreign import getSubs :: forall state eff. Store state -> Eff (redox :: REDOX | eff) (Array (state -> Eff (redox :: REDOX | eff) Unit))
 
 instance functorStore :: Functor Store where
