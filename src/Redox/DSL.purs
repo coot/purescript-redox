@@ -4,14 +4,12 @@ module Redox.DSL
   ) where
 
 import Prelude
-import Control.Monad.Aff (Aff, runAff)
+import Redox.Store
+import Control.Monad.Aff (Aff, Canceler, runAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (log, CONSOLE)
 import Control.Monad.Eff.Exception (Error)
 import Data.Foldable (sequence_)
-import Data.Functor (mapFlipped)
-
-import Redox.Store
 
 _dispatch
   :: forall state dsl eff
@@ -20,11 +18,11 @@ _dispatch
   -> (dsl -> state -> Aff (redox :: REDOX | eff) state)
   -> Store state
   -> dsl
-  -> Eff (redox :: REDOX | eff) Unit
+  -> Eff (redox :: REDOX | eff) (Canceler (redox :: REDOX | eff))
 _dispatch errFn succFn interp store cmds =
   do
     state <- getState store
-    void $ runAff errFn succFn (interp cmds state)
+    runAff errFn succFn (interp cmds state)
 
 -- | Dispatch dsl commands that will be interpreted in Aff monad.
 -- | You have to write your own DSL for the state changes and an interpreter for it.
@@ -35,7 +33,7 @@ dispatch
   -> (dsl -> state -> Aff (redox :: REDOX | eff) state)
   -> Store state
   -> dsl
-  -> Eff (redox :: REDOX | eff) Unit
+  -> Eff (redox :: REDOX | eff) (Canceler (redox :: REDOX | eff))
 dispatch errFn interp store cmds = _dispatch errFn succFn interp store cmds
   where
     succFn state = do
@@ -53,6 +51,6 @@ dispatchP
   -> (dsl -> state -> Aff (redox :: REDOX | eff) state)
   -> Store state
   -> dsl
-  -> Eff (redox :: REDOX | eff) Unit
+  -> Eff (redox :: REDOX | eff) (Canceler (redox :: REDOX | eff))
 dispatchP errFn interp store cmds =
   _dispatch errFn (\_ -> pure unit) interp store cmds
