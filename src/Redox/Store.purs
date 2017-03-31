@@ -18,6 +18,8 @@ foreign import unsubscribe :: forall state eff. Store state -> (state -> Eff (re
 
 foreign import mapStore :: forall state state'. (state -> state') -> Store state -> Store state'
 
+foreign import setState :: forall state eff. Store state -> state -> Eff (redox :: REDOX | eff) (Store state)
+
 foreign import getState :: forall state eff. Store state -> Eff (redox :: REDOX | eff) state
 
 foreign import getSubs :: forall state eff. Store state -> Eff (redox :: REDOX | eff) (Array (state -> Eff (redox :: REDOX | eff) Unit))

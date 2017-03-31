@@ -4,15 +4,20 @@ module Test.DSL
 
 import Prelude
 import Data.Array as A
-import Control.Comonad.Cofree (Cofree, exploreM, unfoldCofree, (:<))
-import Control.Monad.Aff (Aff, later, later')
+import Control.Comonad.Cofree (Cofree, exploreM, hoistCofree, unfoldCofree, head, tail, (:<))
+import Control.Monad.Aff (Aff, forkAff, later, later')
+import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (log)
+import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Control.Monad.Free (Free, liftF)
-import Redox.DSL (dispatch)
-import Redox.Store (REDOX, getState, mkStore)
+import Debug.Trace (trace)
+import Redox.DSL (dispatch, dispatchP)
+import Redox.Store (REDOX, Store, getState, mkStore, setState)
 import Test.Unit (TestSuite, failure, success, suite, test)
 import Test.Unit.Assert (assert)
+
+foreign import unsafeLog :: forall a e. a -> Eff e Unit
 
 data Command a
   = Increment Int a
@@ -88,6 +93,33 @@ pair (DecrementSync a next) (Run interp) = next <$> (interp.decrementSync a)
 runInterp :: forall eff. DSL (Int -> Int) -> Int -> Aff eff Int
 runInterp cmds state = exploreM pair cmds $ mkInterp state
 
+-- unlike mkInter, this interpreter will update store in every step of computation
+mkIncInterp :: forall eff. Store Int -> Int -> Interp (redox :: REDOX | eff) Int
+mkIncInterp store state = hoist nat (mkInterp state)
+  where
+    -- like hoistCofree, but we don't have natural transformation here
+    hoist nat cf = head cf :< nat (hoist nat <$> tail cf)
+
+    nat
+      :: forall state eff'
+       . Run eff' (Interp eff' state)
+      -> Run eff' (Interp eff' state)
+    nat (Run r) = Run { increment: wrap r.increment
+                      , decrement: wrap r.decrement
+                      , incrementSync: wrap r.incrementSync
+                      , decrementSync: wrap r.decrementSync
+                      }
+      where
+        wrap fn = \arg ->
+                  do
+                    interp <- fn arg
+                    let state = head interp
+                    pure $ (const state) <$> store
+                    pure interp
+
+runIncInterp :: forall eff. Store Int -> DSL (Int -> Int) -> Int -> Aff (redox :: REDOX | eff) Int
+runIncInterp store cmds state = exploreM pair cmds $ mkIncInterp store state
+
 cmds :: DSL (Int -> Int)
 cmds = do 
   increment 10
@@ -108,7 +140,7 @@ testSuite =
     test "update store asynchronously" $ do
       store <- liftEff $ mkStore 0
       liftEff $ dispatch
-        (\_ _ -> pure unit)
+        (\_ -> pure unit)
         runInterp
         store
         cmds
@@ -118,7 +150,7 @@ testSuite =
     test "update store" $ do
       store <- liftEff $ mkStore 0
       liftEff $ dispatch
-        (\_ _ -> pure unit)
+        (\_ -> pure unit)
         runInterp
         store
         cmds
@@ -128,7 +160,7 @@ testSuite =
     test "run sync commands" $ do
       store <- liftEff $ mkStore 0
       liftEff $ dispatch
-        (\_ _ -> pure unit)
+        (\_ -> pure unit)
         runInterp
         store
         cmds2
@@ -137,3 +169,22 @@ testSuite =
 
     -- note: if one mixes sync and async commands, they will all run when the
     -- last async command resolves - due to how Aff bind works.
+
+    test "incremental interpreter" $ do
+      store <- liftEff $ mkStore 0
+      liftEff $ dispatchP
+        (\_ -> pure unit)
+        (runIncInterp store)
+        store
+        do
+          incrementSync 1
+          increment 1
+          increment 1
+          pure id
+      state <- liftEff $ getState store
+      assert ("store should update " <> show state) (state == 1)
+      state <- later $ liftEff $ getState store
+      assert ("store should increment " <> show state <> " expected 2") (state == 2)
+      state <- later $ liftEff $ getState store
+      assert ("store should increment " <> show state <> " expected 3") (state == 3)
+

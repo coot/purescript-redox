@@ -23,6 +23,15 @@ exports.getState = function(store) {
   }
 }
 
+exports.setState = function(store) {
+  return function(state) {
+    return function() {
+      store.state = state
+      return store
+    }
+  }
+}
+
 exports.getSubs = function(store) {
   return function() {
     return store.subscriptions
