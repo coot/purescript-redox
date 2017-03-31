@@ -5,7 +5,7 @@ import Prelude
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Eff.Ref (REF, newRef)
-import Control.Monad.Eff.Unsafe (unsafePerformEff)
+import Control.Monad.Eff.Unsafe (unsafeCoerceEff, unsafePerformEff)
 import Unsafe.Coerce (unsafeCoerce)
 
 foreign import data REDOX :: !
@@ -31,3 +31,10 @@ instance functorStore :: Functor Store where
 
 performRedoxEff :: forall a. Eff (redox :: REDOX) a -> a
 performRedoxEff = unsafeCoerce unsafePerformEff
+
+-- | Make store outside of Eff monad (global)
+mkStoreG :: forall state. state -> Store state
+mkStoreG = performRedoxEff <<< mkStore'
+  where
+    mkStore' :: state -> Eff (redox :: REDOX) (Store state)
+    mkStore' = unsafeCoerceEff <<< mkStore
