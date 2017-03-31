@@ -5,6 +5,8 @@ import Prelude
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE, log)
 import Control.Monad.Eff.Ref (REF, newRef)
+import Control.Monad.Eff.Unsafe (unsafePerformEff)
+import Unsafe.Coerce (unsafeCoerce)
 
 foreign import data REDOX :: !
 
@@ -26,3 +28,6 @@ foreign import getSubs :: forall state eff. Store state -> Eff (redox :: REDOX |
 
 instance functorStore :: Functor Store where
   map fn store = mapStore fn store
+
+performRedoxEff :: forall a. Eff (redox :: REDOX) a -> a
+performRedoxEff = unsafeCoerce unsafePerformEff

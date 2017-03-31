@@ -43,8 +43,9 @@ dispatch errFn interp store cmds = _dispatch errFn succFn interp store cmds
       subs <- getSubs store
       sequence_ ((_ $ state) <$> subs)
 
--- | Dispatch function which does not handle store updates
--- | That's useful if the interpreter is updating the store 
+-- | Dispatch function which does not handle store updates.  That's useful if
+-- | the interpreter is updating the store. You can use
+-- | `Redox.Utils.mkIncInterp` to create such interpreter.
 dispatchP
   :: forall state dsl eff
    . (Error -> Eff (redox :: REDOX | eff) Unit)

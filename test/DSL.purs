@@ -12,6 +12,7 @@ import Control.Monad.Eff.Console (log)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Control.Monad.Free (Free, liftF)
 import Debug.Trace (trace)
+import Redox.Utils (mkIncInterp)
 import Redox.DSL (dispatch, dispatchP)
 import Redox.Store (REDOX, Store, getState, mkStore, setState)
 import Test.Unit (TestSuite, failure, success, suite, test)
@@ -93,32 +94,8 @@ pair (DecrementSync a next) (Run interp) = next <$> (interp.decrementSync a)
 runInterp :: forall eff. DSL (Int -> Int) -> Int -> Aff eff Int
 runInterp cmds state = exploreM pair cmds $ mkInterp state
 
--- unlike mkInter, this interpreter will update store in every step of computation
-mkIncInterp :: forall eff. Store Int -> Int -> Interp (redox :: REDOX | eff) Int
-mkIncInterp store state = hoist nat (mkInterp state)
-  where
-    -- like hoistCofree, but we don't have natural transformation here
-    hoist nat cf = head cf :< nat (hoist nat <$> tail cf)
-
-    nat
-      :: forall state eff'
-       . Run eff' (Interp eff' state)
-      -> Run eff' (Interp eff' state)
-    nat (Run r) = Run { increment: wrap r.increment
-                      , decrement: wrap r.decrement
-                      , incrementSync: wrap r.incrementSync
-                      , decrementSync: wrap r.decrementSync
-                      }
-      where
-        wrap fn = \arg ->
-                  do
-                    interp <- fn arg
-                    let state = head interp
-                    pure $ (const state) <$> store
-                    pure interp
-
 runIncInterp :: forall eff. Store Int -> DSL (Int -> Int) -> Int -> Aff (redox :: REDOX | eff) Int
-runIncInterp store cmds state = exploreM pair cmds $ mkIncInterp store state
+runIncInterp store cmds state = exploreM pair cmds $ mkIncInterp store (mkInterp state)
 
 cmds :: DSL (Int -> Int)
 cmds = do 
