@@ -40,7 +40,7 @@ hoistCofree' nat cf = head cf :< nat (hoistCofree' nat <$> tail cf)
 
 -- | Make interpreter which updates the store on every step of computation.
 -- | You have to supply the store and interperter of type `Cofree f state`.
--- | Check out test how you can use it.
+-- | Check out tests how you can use it.
 mkIncInterp
   :: forall state f
    . (Functor f)

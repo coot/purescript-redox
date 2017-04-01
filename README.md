@@ -10,7 +10,7 @@ more using coroutines (similar to how
 [Thermite](https://github.com/paf31/purescript-thermite) updates react
 component state). 
 
-# Redox.DSL
+## Redox.DSL
 
 A DSL has to be interpreted in the `Aff` monad.  Since `Aff` has an instance of
 `MonadEff` this does not restrict you in any way.  Checkout tests how to write
@@ -50,7 +50,7 @@ an interpreter without `Cofree`, simply by using `State` to track the state, or
 just by hand.  The advantage of using `Cofree` is that whenever you will change
 `C` the compiler will force you to update `RunC` in compatible way.
 
-# Incremental updates
+## Incremental updates
 The `Redox.DSL.dispatch` function will dispatch changes to the store when the
 `Aff` computation resolves.  You may want to dispatch every node of your
 interpreter i.e. when each DSL command is run in the `do` block`. For example
@@ -85,7 +85,7 @@ Redox.DSL.dispatchP
 ```
 which will not touch the store, (the `P` suffix stands for pure).
 
-# Store middlewares via hoisting Cofree
+## Store middlewares via hoisting Cofree
 You can modify your interpreter using
 ```purescript
 Redox.Utils.hoistCofree'
@@ -121,4 +121,4 @@ addLogger interp = hoistCofree' nat interp
 
 There are plenty of other things you can do with the interpreter in this way, e.g.
 undo/redo stack, optimistic updates, crash reporting, delay actions (or
-just some actions, via prisms) ...
+just some actions, via prisms).
