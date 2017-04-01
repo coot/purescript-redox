@@ -26,7 +26,9 @@ _dispatch errFn succFn interp store cmds =
 
 -- | Dispatch dsl commands that will be interpreted in Aff monad.
 -- | You have to write your own DSL for the state changes and an interpreter for it.
--- | Check out [purescript-dsl-example](https://github.com/coot/purescript-dsl-example).
+-- | Check out
+-- | [purescript-dsl-example](https://github.com/coot/purescript-dsl-example) or
+-- | see the tests.
 dispatch
   :: forall state dsl eff
    . (Error -> Eff (redox :: REDOX | eff) Unit)

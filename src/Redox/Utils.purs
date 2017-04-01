@@ -13,6 +13,26 @@ import Unsafe.Coerce (unsafeCoerce)
 -- | This is equivalent of
 -- | [`applyMiddleware`](https://github.com/reactjs/redux/blob/master/src/applyMiddleware.js) 
 -- | from the redux library.
+-- | You can use this function to add effects to your interpreter, like
+-- | logging, optimistic updates, undo/redo stack, delayed actions... 
+-- | For example a simple logger:
+-- | ```purescript
+-- | addLogger
+-- |   :: forall state f
+-- |    . (Functor f)
+-- |   => Cofree f state
+-- |   -> Cofree f state
+-- | addLogger interp = hoistCofree' nat interp
+-- |   where
+-- |     nat :: f (Cofree f state) -> f (Cofree f state)
+-- |     nat fa = g <$> fa
+-- | 
+-- |     g :: Cofree f state -> Cofree f state
+-- |     g cof = unsafePerformEff do
+-- |       -- Control.Comonad.Cofree.head 
+-- |       log $ unsafeCoerce (head cof)
+-- |       pure cof
+-- | ```purescript
 hoistCofree'
   :: forall f state
    . (Functor f)

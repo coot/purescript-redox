@@ -15,8 +15,8 @@ foreign import data Store :: Type -> Type
 -- | Make store with initial state.
 foreign import mkStore :: forall state eff. state -> Eff (redox :: REDOX | eff) (Store state)
 
--- | Subscribe to store updates.  Not that store updates are not run by the
--- | store itself.  That is left to dispatch implementations.
+-- | Subscribe to store updates.  Note that store updates are not run by the
+-- | store itself.  That is left to dispatch or the DSL interpreter.
 foreign import subscribe :: forall state eff. Store state -> (state -> Eff (redox :: REDOX | eff) Unit) -> Eff (redox :: REDOX | eff) Unit
 
 foreign import unsubscribe :: forall state eff. Store state -> (state -> Eff (redox :: REDOX | eff ) Unit) -> Eff (redox :: REDOX | eff) Unit
@@ -36,7 +36,7 @@ instance functorStore :: Functor Store where
 performRedoxEff :: forall a. Eff (redox :: REDOX) a -> a
 performRedoxEff = unsafeCoerce unsafePerformEff
 
--- | Make store outside of Eff monad (global)
+-- | Make store outside of Eff monad (global).
 mkStoreG :: forall state. state -> Store state
 mkStoreG = performRedoxEff <<< mkStore'
   where
