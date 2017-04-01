@@ -49,3 +49,76 @@ Check out tests for an example or this
 an interpreter without `Cofree`, simply by using `State` to track the state, or
 just by hand.  The advantage of using `Cofree` is that whenever you will change
 `C` the compiler will force you to update `RunC` in compatible way.
+
+# Incremental updates
+The `Redox.DSL.dispatch` function will dispatch changes to the store when the
+`Aff` computation resolves.  You may want to dispatch every node of your
+interpreter i.e. when each DSL command is run in the `do` block`. For example
+if you try to 
+```purescript
+dispatch do
+  cmd1 arg1
+  cmd2 arg2
+```
+The `dispatch` will update the store when cmd2 finishes.  But you can build
+this into the interpreter.  Since this is common, there is a function in `Redox.Utils` to
+modify an interpreter of type `Cofree f a` so that it dispatches on every step
+of the `Cofree` comonad:
+```purescript
+Redox.Utils.mkIncInterp
+  :: forall state f
+   . (Functor f)
+  => Store state
+  -> Cofree f state
+  -> Cofree f state
+```
+
+Since the interpreter is handling store updates, you can use
+```purescript
+Redox.DSL.dispatchP
+  :: forall state dsl eff
+   . (Error -> Eff (redox :: REDOX | eff) Unit)
+  -> (dsl -> state -> Aff (redox :: REDOX | eff) state)
+  -> Store state
+  -> dsl
+  -> Eff (redox :: REDOX | eff) (Canceler (redox :: REDOX | eff))
+```
+which will not touch the store, (the `P` suffix stands for pure).
+
+# Store middlewares via hoisting Cofree
+You can modify your interpreter using
+```purescript
+Redox.Utils.hoistCofree'
+  :: forall f state
+   . (Functor f)
+  => (f (Cofree f state) -> f (Cofree f state))
+  -> Cofree f state
+  -> Cofree f state
+```
+
+This is a version of `Control.Comonad.Cofree.hostCofree` but here the first
+argument does not need to be a natural transformation.  This let you add
+effects to the interpreter.  For example `mkIncInterp` is build using it.
+Another example is to add a logger.
+
+```purescript
+addLogger
+  :: forall state f
+   . (Functor f)
+  => Cofree f state
+  -> Cofree f state
+addLogger interp = hoistCofree' nat interp
+  where
+    nat :: f (Cofree f state) -> f (Cofree f state)
+    nat fa = g <$> fa
+
+    g :: Cofree f state -> Cofree f state
+    g cof = unsafePerformEff do
+      -- Control.Comonad.Cofree.head 
+      log $ unsafeCoerce (head cof)
+      pure cof
+```
+
+There are plenty of other things you can do with the interpreter in this way, e.g.
+undo/redo stack, optimistic updates, crash reporting, delay actions (or
+just some actions, via prisms) ...
