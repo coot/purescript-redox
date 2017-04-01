@@ -10,7 +10,8 @@ foreign import data REDOX :: !
 
 foreign import data Store :: Type -> Type
 
--- | Make store with initial state.
+-- | Make store with initial state. Store is a mutable container with
+-- | a subscription mechanism.
 foreign import mkStore :: forall state eff. state -> Eff (redox :: REDOX | eff) (Store state)
 
 -- | Subscribe to store updates.  Note that store updates are not run by the
