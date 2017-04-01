@@ -7,9 +7,9 @@ import Redox.Store (Store)
 
 -- | A version of `hoistCofree`, where `nat` does not need to come from natural
 -- | transformation.
--- | This is equivalent of
--- | [`applyMiddleware`](https://github.com/reactjs/redux/blob/master/src/applyMiddleware.js) 
--- | from the redux library.
+-- | This corresponds to
+-- | [applyMiddleware](https://github.com/reactjs/redux/blob/master/src/applyMiddleware.js) 
+-- | in the [redux](https://github.com/reactjs/redux) library.
 -- | You can use this function to add effects to your interpreter, like
 -- | logging, optimistic updates, undo/redo stack, delayed actions... 
 -- | For example a simple logger:
