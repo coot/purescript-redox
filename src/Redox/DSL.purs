@@ -4,12 +4,12 @@ module Redox.DSL
   ) where
 
 import Prelude
-import Redox.Store
 import Control.Monad.Aff (Aff, Canceler, runAff)
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (log, CONSOLE)
 import Control.Monad.Eff.Exception (Error)
 import Data.Foldable (sequence_)
+import Redox.Store as O
+import Redox.Store (Store, REDOX)
 
 _dispatch
   :: forall state dsl eff
@@ -21,7 +21,7 @@ _dispatch
   -> Eff (redox :: REDOX | eff) (Canceler (redox :: REDOX | eff))
 _dispatch errFn succFn interp store cmds =
   do
-    state <- getState store
+    state <- O.getState store
     runAff errFn succFn (interp cmds state)
 
 -- | Dispatch dsl commands that will be interpreted in Aff monad.
@@ -42,7 +42,7 @@ dispatch errFn interp store cmds = _dispatch errFn succFn interp store cmds
       -- update store state
       pure $ (const state) <$> store
       -- run subscriptions
-      subs <- getSubs store
+      subs <- O.getSubs store
       sequence_ ((_ $ state) <$> subs)
 
 -- | Dispatch function which does not handle store updates.  That's useful if

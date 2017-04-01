@@ -1,12 +1,9 @@
 module Redox.Utils where
 
 import Prelude
-import Control.Comonad.Cofree (Cofree, hoistCofree, (:<), head, tail)
-import Control.Monad.Eff.Console (log)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Unsafe (unsafePerformEff)
-import Redox.Store (Store, setState, performRedoxEff)
-import Unsafe.Coerce (unsafeCoerce)
+import Control.Comonad.Cofree (Cofree, head, tail, (:<))
+import Redox.Store as O
+import Redox.Store (Store)
 
 -- | A version of `hoistCofree`, where `nat` does not need to come from natural
 -- | transformation.
@@ -58,6 +55,6 @@ mkIncInterp store interp = hoistCofree' nat interp
     nat fa = g <$> fa
 
     g :: Cofree f state -> Cofree f state
-    g cof = performRedoxEff do
-      setState store (head cof)
+    g cof = O.performRedoxEff do
+      O.setState store (head cof)
       pure cof

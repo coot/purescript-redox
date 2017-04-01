@@ -3,8 +3,6 @@ module Redox.Store where
 import Prim
 import Prelude
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE, log)
-import Control.Monad.Eff.Ref (REF, newRef)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff, unsafePerformEff)
 import Unsafe.Coerce (unsafeCoerce)
 
