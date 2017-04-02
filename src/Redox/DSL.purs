@@ -10,7 +10,6 @@ import Control.Monad.Aff (Aff, Canceler, runAff)
 import Control.Monad.Aff.Unsafe (unsafeCoerceAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (Error)
-import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Data.Foldable (sequence_)
 import Redox.Store (Store, ReadWriteRedox, ReadWriteSubscribeRedox)
 
