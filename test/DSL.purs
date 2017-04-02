@@ -1,6 +1,4 @@
-module Test.DSL 
-  ( testSuite
-  ) where 
+module Test.DSL where 
 
 import Prelude
 import Data.Array as A
@@ -44,9 +42,9 @@ increment i = liftF (Increment i unit)
 incrementSync :: Int -> DSL Unit
 incrementSync i = liftF (IncrementSync i unit)
 
--- | Now we need an interpreter.  We start with a dual functor: `Command` had
--- | a sum type, hence `Run` is a product.  We use `Aff` since we want to
--- | interpret the `DSL` in the `Aff` monad.
+-- | We need an interpreter.  We start with a dual functor: `Command` had
+-- | a sum type, hence `Run` has to be a product.  We use `Aff` since we want
+-- | to interpret the `DSL` in the `Aff` monad.
 newtype Run eff a = Run
   { increment :: Int -> Aff eff a
   , incrementSync :: Int -> Aff eff a
@@ -59,11 +57,11 @@ instance functorRun :: Functor (Run eff) where
         }
 
 -- | Basic interpreter.  We only specify how the state will be updated.
--- | Cofree is a sort of an annotated tree, where each node holds the
+-- | Cofree can be seen as an annotated tree, where each node holds the
 -- | value of current computation (the state), and the branching is done via
--- | the supplied function, here `Run`.  `Cofree` is an infinite data structure
--- | so thus it will be able to interpret program of any length written using the
--- | `Free` monad (or depth)
+-- | supplied functor, here `Run`.  `Cofree` is an infinite data structure
+-- | hence it will be able to interpret program of any length (or depth)
+-- | written using the `Free` monad.
 type Interp eff a = Cofree (Run eff) a
 
 -- | Use `unfoldCofree` to create the interpreter.
