@@ -3,17 +3,17 @@ module Test.Store
   where
 
 import Prelude
-import Redox.Store
-import Data.Array as A
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
+import Data.Array as A
 import Data.Maybe (Maybe(..))
+import Redox.Store
 import Test.Unit (TestSuite, failure, success, suite, test)
 import Test.Unit.Assert (assert)
 
 foreign import eqFns :: forall a eff. (a -> Eff eff Unit) -> (a -> Eff eff Unit) -> Boolean
 
-testSuite :: forall eff. TestSuite (redox :: REDOX | eff)
+testSuite :: forall eff. TestSuite (readRedox :: ReadRedox, createRedox :: CreateRedox, subscribeRedox :: SubscribeRedox | eff)
 testSuite = do
 
   suite "Store" $ do
@@ -37,7 +37,7 @@ testSuite = do
     suite "subscriptions" $ do
 
       test "add subscription" $ 
-        let fn = const (pure unit :: Eff (redox :: REDOX | eff) Unit)
+        let fn = const $ pure unit
         in do
           store <- liftEff $ mkStore 0
           liftEff $ subscribe store fn
@@ -49,7 +49,7 @@ testSuite = do
             Just fn' -> assert ("it should be the supplied fn") $ eqFns fn fn'
 
       test "remove subscription" $
-        let fn = const (pure unit :: Eff (redox :: REDOX | eff) Unit)
+        let fn = const $ pure unit
         in do
           store <- liftEff $ mkStore 0
           liftEff $ subscribe store fn

@@ -11,7 +11,7 @@ import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Control.Monad.Free (Free, liftF)
 import Redox.Utils (mkIncInterp)
 import Redox.DSL (dispatch, dispatchP)
-import Redox.Store (REDOX, Store, getState, mkStore, setState)
+import Redox.Store (Store, getState, mkStore, setState, ReadWriteRedox, ReadRedox, WriteRedox, CreateRedox, SubscribeRedox)
 import Test.Unit (TestSuite, failure, success, suite, test)
 import Test.Unit.Assert (assert)
 
@@ -94,7 +94,7 @@ runInterp cmds state = exploreM pair cmds $ mkInterp state
 -- | `runIncInterp` is an enhanced version of `runInterp` which updates the
 -- | store on every step of computation. You can use `Redox.dispatchP` to run
 -- | DSL programs.
-runIncInterp :: forall eff. Store Int -> DSL (Int -> Int) -> Int -> Aff (redox :: REDOX | eff) Int
+runIncInterp :: forall eff. Store Int -> DSL (Int -> Int) -> Int -> Aff eff Int
 runIncInterp store cmds state = exploreM pair cmds $ mkIncInterp store (mkInterp state)
 
 -- | `cmds` is a simple program in our DSL
@@ -111,7 +111,7 @@ cmds2 = do
   incrementSync (-5)
   pure id
 
-testSuite :: forall eff. TestSuite (redox :: REDOX | eff)
+testSuite :: forall eff. TestSuite (readRedox :: ReadRedox, writeRedox :: WriteRedox, createRedox :: CreateRedox, subscribeRedox :: SubscribeRedox | eff)
 testSuite =
 
   suite "DSL" do

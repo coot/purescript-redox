@@ -55,6 +55,6 @@ mkIncInterp store interp = hoistCofree' nat interp
     nat fa = g <$> fa
 
     g :: Cofree f state -> Cofree f state
-    g cof = O.performRedoxEff do
+    g cof = O.performWriteRedoxEff do
       O.setState store (head cof)
       pure cof
