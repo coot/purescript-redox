@@ -6,9 +6,11 @@ function Store(state) {
 }
 Store.prototype.subscribe = function(fn) {
   this.subscriptions.push(fn)
+  return this.subscriptions.length - 1
 }
-Store.prototype.unsubscribe = function(fn) {
-  this.subscriptions = this.subscriptions.filter(function(fn_) {return fn_ !== fn})
+Store.prototype.unsubscribe = function(idx) {
+  this.subscriptions.splice(idx, 1)
+  return {}
 }
 
 exports.mkStore = function mkStore(state) {
@@ -38,19 +40,18 @@ exports.getSubs = function(store) {
   }
 }
 
-exports.subscribe = function(store) {
+exports._subscribe = function(store) {
   return function(fn) {
     return function() {
-      store.subscribe(fn)
-      return {}
+      return store.subscribe(fn)
     }
   }
 }
 
-exports.unsubscribe = function(store) {
-  return function(fn) {
+exports._unsubscribe = function(store) {
+  return function(idx) {
     return function() {
-      store.unsubscribe(fn)
+      store.unsubscribe(idx)
       return {}
     }
   }

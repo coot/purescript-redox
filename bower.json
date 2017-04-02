@@ -20,7 +20,8 @@
     "purescript-freet": "^2.1.0",
     "purescript-free": "^3.5.0",
     "purescript-refs": "^2.0.0",
-    "purescript-aff": "^2.0.3"
+    "purescript-aff": "^2.0.3",
+    "purescript-generics": "3.3.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^2.0.0",

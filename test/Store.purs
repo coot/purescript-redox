@@ -52,7 +52,7 @@ testSuite = do
         let fn = const $ pure unit
         in do
           store <- liftEff $ mkStore 0
-          liftEff $ subscribe store fn
-          liftEff $ unsubscribe store fn
+          sId <- liftEff $ subscribe store fn
+          liftEff $ unsubscribe store sId
           subs <- liftEff $ getSubs store
           assert ("store should not have any subscriptions") (A.length subs == 0)
