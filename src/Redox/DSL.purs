@@ -42,7 +42,7 @@ dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> coerceAff <<<
   where
     succFn state = do
       -- update store state
-      pure $ (const state) <$> store
+      _ <- pure $ (const state) <$> store
       -- run subscriptions
       subs <- O.getSubs store
       sequence_ ((_ $ state) <$> subs)

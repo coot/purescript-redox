@@ -23,25 +23,24 @@ module Redox.Store
   , unsubscribe
   ) where
 
-import Prim
 import Prelude
-import Control.Monad.Eff (Eff)
+import Control.Monad.Eff (kind Effect, Eff)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff, unsafePerformEff)
 import Data.Generic (class Generic, gCompare, gEq)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Unsafe.Coerce (unsafeCoerce)
 
 -- | Effect for creating Redox Store
-foreign import data CreateRedox :: !
+foreign import data CreateRedox :: Effect
 
 -- | Effect for reading state of the store or retreaving store subscribers.
-foreign import data ReadRedox :: !
+foreign import data ReadRedox :: Effect
 
 -- | Effect for writing to the store
-foreign import data WriteRedox :: !
+foreign import data WriteRedox :: Effect
 
 -- | Effect for (un)subscribing to the store
-foreign import data SubscribeRedox :: !
+foreign import data SubscribeRedox :: Effect
 
 type ReadOnlyRedox eff = (readRedox :: ReadRedox | eff)
 
