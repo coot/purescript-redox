@@ -40,7 +40,7 @@ testSuite = do
         let fn = const $ pure unit
         in do
           store <- liftEff $ mkStore 0
-          liftEff $ subscribe store fn
+          _ <- liftEff $ subscribe store fn
 
           subs <- liftEff $ getSubs store
           assert ("store should have one subscription") (A.length subs == 1)

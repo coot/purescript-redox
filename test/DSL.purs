@@ -3,12 +3,13 @@ module Test.DSL where
 import Prelude
 import Data.Array as A
 import Control.Comonad.Cofree (Cofree, exploreM, hoistCofree, unfoldCofree, head, tail, (:<))
-import Control.Monad.Aff (Aff, forkAff, later, later')
+import Control.Monad.Aff (Aff, forkAff, delay)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (log)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Control.Monad.Free (Free, liftF)
+import Data.Time.Duration (Milliseconds(..))
 import Redox.Utils (mkIncInterp)
 import Redox.DSL (dispatch, dispatchP)
 import Redox.Store (Store, getState, mkStore, setState, ReadWriteRedox, ReadRedox, WriteRedox, CreateRedox, SubscribeRedox)
@@ -66,7 +67,7 @@ type Interp eff a = Cofree (Run eff) a
 
 -- | Use `unfoldCofree` to create the interpreter.
 mkInterp :: forall eff. Int -> Interp eff Int
-mkInterp state = unfoldCofree state id next
+mkInterp state = unfoldCofree id next state
   where
     next :: Int -> Run eff Int
     next st = Run { increment: increment st
@@ -74,7 +75,9 @@ mkInterp state = unfoldCofree state id next
                   }
 
     increment :: Int -> Int -> Aff eff Int
-    increment a b = later $ pure (a + b)
+    increment a b = do
+      delay $ Milliseconds 0.0
+      pure (a + b)
 
     incrementSync :: Int -> Int -> Aff eff Int
     incrementSync a b = pure (a + b)
@@ -118,7 +121,7 @@ testSuite =
 
     test "update store asynchronously" $ do
       store <- liftEff $ mkStore 0
-      liftEff $ dispatch
+      _ <- liftEff $ dispatch
         (\_ -> pure unit)
         runInterp
         store
@@ -128,17 +131,19 @@ testSuite =
 
     test "update store" $ do
       store <- liftEff $ mkStore 0
-      liftEff $ dispatch
+      _ <- liftEff $ dispatch
         (\_ -> pure unit)
         runInterp
         store
         cmds
-      state <- later' 10 $ liftEff $ getState store
+      state <- do
+        delay $ Milliseconds 10.0
+        liftEff $ getState store
       assert ("store failed to update: " <> show state) (state == 5)
 
     test "run sync commands" $ do
       store <- liftEff $ mkStore 0
-      liftEff $ dispatch
+      _ <- liftEff $ dispatch
         (\_ -> pure unit)
         runInterp
         store
@@ -148,7 +153,7 @@ testSuite =
 
     test "incremental interpreter" $ do
       store <- liftEff $ mkStore 0
-      liftEff $ dispatchP
+      _ <- liftEff $ dispatchP
         (\_ -> pure unit)
         (runIncInterp store)
         store
@@ -159,8 +164,12 @@ testSuite =
           pure id
       state <- liftEff $ getState store
       assert ("store should update " <> show state) (state == 1)
-      state <- later $ liftEff $ getState store
+      state <- do
+        delay $ Milliseconds 0.0
+        liftEff $ getState store
       assert ("store should increment " <> show state <> " expected 2") (state == 2)
-      state <- later $ liftEff $ getState store
+      state <- do
+        delay $ Milliseconds 0.0
+        liftEff $ getState store
       assert ("store should increment " <> show state <> " expected 3") (state == 3)
 
