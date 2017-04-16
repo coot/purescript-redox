@@ -30,7 +30,9 @@ _dispatch errFn succFn interp store cmds =
 -- | You have to write your own DSL for the state changes and an interpreter for it.
 -- | Check out
 -- | [purescript-dsl-example](https://github.com/coot/purescript-dsl-example) or
--- | see the tests.
+-- | see the tests.  This is useful if you want to have a batch dispatch that
+-- | dispatches all the commands at once when the interpreter finished running
+-- | over the commands.
 dispatch
   :: forall state dsl eff
    . (Error -> Eff (ReadWriteSubscribeRedox eff) Unit)
