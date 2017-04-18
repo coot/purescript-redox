@@ -68,12 +68,20 @@ instance eqSubscriptionId :: Eq SubscriptionId where
 instance ordSubscriptionId :: Ord SubscriptionId where
   compare = gCompare
 
-foreign import _subscribe :: forall state eff. Store state -> (state -> Eff (subscribeRedox :: SubscribeRedox | eff) Unit) -> Eff (subscribeRedox :: SubscribeRedox | eff) Int
+foreign import _subscribe
+  :: forall state eff eff'
+   . Store state
+  -> (state -> Eff eff' Unit)
+  -> Eff (subscribeRedox :: SubscribeRedox | eff) Int
 
 -- | Subscribe to store updates.  Note that store updates are not run by the
 -- | store itself.  That is left to dispatch or the DSL interpreter.
 -- | It returns id of the subscribed callback.  You can use it to remove the subscription.
-subscribe :: forall state eff. Store state -> (state -> Eff (subscribeRedox :: SubscribeRedox | eff) Unit) -> Eff (subscribeRedox :: SubscribeRedox | eff) SubscriptionId
+subscribe
+  :: forall state eff eff'
+   . Store state
+  -> (state -> Eff eff' Unit)
+  -> Eff (subscribeRedox :: SubscribeRedox | eff) SubscriptionId
 subscribe store fn = wrap <$> _subscribe store fn
 
 foreign import _unsubscribe :: forall state eff. Store state -> Int -> Eff (subscribeRedox :: SubscribeRedox | eff) Unit
