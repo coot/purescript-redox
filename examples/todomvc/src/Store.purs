@@ -1,66 +1,90 @@
 module TodoMVC.Store where
 
-import Prelude (class Functor, id, map, max, not, ($), (+), (/=), (<<<), (==))
-import Data.Array (snoc, filter)
-import Data.Newtype (unwrap, over)
+import Prelude
+import Control.Comonad.Cofree (Cofree, exploreM, unfoldCofree)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console (log)
+import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
+import Control.Monad.Aff (Aff)
+import Data.Array (snoc, filter, mapWithIndex, replicate)
 import Data.Foldable (all, foldl)
-import Control.Comonad.Cofree (Cofree, explore, unfoldCofree)
-
-import TodoMVC.Types (Todo(..))
+import Data.Newtype (unwrap, over)
+import Prelude (class Functor, id, map, max, not, ($), (+), (/=), (<<<), (==))
+import Redox (Store, mkStoreG)
+import Redox.Utils (mkIncInterp)
 import TodoMVC.Action (Action(..), ActionDSL)
+import TodoMVC.Types (Todo(..), State)
+import Global.Unsafe (unsafeStringify)
 
-newtype Run a = Run
-  { addTodo :: String -> a
-  , deleteTodo :: Int -> a
-  , editTodo :: Int -> String -> a
-  , completeTodo :: Int -> a
-  , completeAll :: a
-  , clearCompleted :: a
+newtype Run eff a = Run
+  { addTodo :: String -> Aff eff a
+  , deleteTodo :: Int -> Aff eff a
+  , editTodo :: Int -> String -> Aff eff a
+  , completeTodo :: Int -> Aff eff a
+  , completeAll :: Aff eff a
+  , clearCompleted :: Aff eff a
   }
 
-derive instance functorRun :: Functor Run
+derive instance functorRun :: Functor (Run eff)
 
-type Interp a = Cofree Run a
+initialState :: State
+initialState = [
+  Todo
+    {
+      text: "Use Redox",
+      completed: false,
+      id: 0
+    }
+]
+-- initialState :: State
+-- initialState = mapWithIndex (\idx _ -> Todo { text: "todo: " <> show idx, completed: false, id: idx }) (replicate 100 0)
 
-mkInterp :: Array Todo -> Interp (Array Todo)
+store :: Store State
+store = mkStoreG initialState
+
+type Interp eff a = Cofree (Run eff) a
+
+mkInterp :: forall eff. State -> Interp eff State
 mkInterp state = unfoldCofree id next state
   where
-    updateTodoText :: Int -> String -> Array Todo -> Todo -> Array Todo
+    updateTodoText :: Int -> String -> State -> Todo -> State
     updateTodoText id text acu td = 
       if id == (unwrap td).id
         then snoc acu (over Todo (_ { text = text }) td)
         else acu
 
-    toggleTodo :: Int -> Array Todo -> Todo -> Array Todo
+    toggleTodo :: Int -> State -> Todo -> State
     toggleTodo id acu td = 
       if id == (unwrap td).id
         then
           let completed = not (unwrap td).completed
-          in snoc acu $ over Todo (_ { completed = not completed }) td
+          in snoc acu $ over Todo (_ { completed = completed }) td
         else snoc acu td
 
-    completeAll :: Array Todo -> Array Todo
+    completeAll :: State -> State
     completeAll state_ =
       let areAllMarked = all (_.completed <<< unwrap) state_
       in map (over Todo (_ { completed = not areAllMarked })) state_
 
-    next :: Array Todo -> Run (Array Todo)
+    next :: State -> Run eff (State)
     next state_ = Run
-      { addTodo: \text -> snoc state_ (Todo {text, completed: false, id: (foldl (\a td -> max a $ (unwrap td).id) 0 state_) + 1 })
-      , deleteTodo: \id -> filter ((id /= _) <<< _.id <<< unwrap) state_
-      , editTodo: \id text -> foldl (updateTodoText id text) [] state_
-      , completeTodo: \id -> foldl (toggleTodo id) [] state_
-      , completeAll: completeAll state_
-      , clearCompleted: filter (not <<< _.completed <<< unwrap) state_
+      { addTodo: \text -> pure $ snoc state_ (Todo {text, completed: false, id: (foldl (\a td -> max a $ (unwrap td).id) 0 state_) + 1 })
+      , deleteTodo: \id -> pure $ filter ((id /= _) <<< _.id <<< unwrap) state_
+      , editTodo: \id text -> pure $ foldl (updateTodoText id text) [] state_
+      , completeTodo: \id -> do
+          let newState = foldl (toggleTodo id) [] state_
+          pure newState
+      , completeAll: pure $ completeAll state_
+      , clearCompleted: pure $ filter (not <<< _.completed <<< unwrap) state_
       }
 
-pair :: forall x y. Action (x -> y) -> Run x -> y
-pair (AddTodo text f) (Run interp) = f $ interp.addTodo text
-pair (DeleteTodo id f) (Run interp) = f $ interp.deleteTodo id
-pair (EditTodo id text f) (Run interp) = f $ interp.editTodo id text
-pair (CompleteTodo id f) (Run interp) = f $ interp.completeTodo id
-pair (CompleteAll f) (Run interp) = f $ interp.completeAll
-pair (ClearCompleted f) (Run interp) = f $ interp.clearCompleted
+pair :: forall x y eff. Action (x -> y) -> Run eff x -> Aff eff y
+pair (AddTodo text f) (Run interp) = f <$> interp.addTodo text
+pair (DeleteTodo id f) (Run interp) = f <$> interp.deleteTodo id
+pair (EditTodo id text f) (Run interp) = f <$> interp.editTodo id text
+pair (CompleteTodo id f) (Run interp) = f <$> interp.completeTodo id
+pair (CompleteAll f) (Run interp) = f <$> interp.completeAll
+pair (ClearCompleted f) (Run interp) = f <$> interp.clearCompleted
 
-dispatchAction :: ActionDSL (Array Todo -> Array Todo) -> Array Todo-> Array Todo
-dispatchAction cmds state = explore pair cmds $ mkInterp state
+runAction :: forall eff. ActionDSL (State -> State) -> State-> Aff eff State
+runAction cmds state = exploreM pair cmds $ mkInterp state
