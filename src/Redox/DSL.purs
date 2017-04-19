@@ -10,6 +10,7 @@ import Control.Monad.Aff (Aff, Canceler, runAff)
 import Control.Monad.Aff.Unsafe (unsafeCoerceAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (Error)
+import Control.Monad.Free (Free)
 import Data.Foldable (sequence_)
 import Redox.Store (Store, ReadWriteRedox, ReadWriteSubscribeRedox)
 
@@ -17,9 +18,9 @@ _dispatch
   :: forall state dsl eff
    . (Error -> Eff (ReadWriteSubscribeRedox eff) Unit)
   -> (state -> Eff (ReadWriteSubscribeRedox eff) Unit)
-  -> (dsl -> state -> Aff (ReadWriteSubscribeRedox eff) state)
+  -> (Free dsl (state -> state) -> state -> Aff (ReadWriteSubscribeRedox eff) state)
   -> Store state
-  -> dsl
+  -> Free dsl (state -> state)
   -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
 _dispatch errFn succFn interp store cmds =
   do
@@ -36,9 +37,9 @@ _dispatch errFn succFn interp store cmds =
 dispatch
   :: forall state dsl eff
    . (Error -> Eff (ReadWriteSubscribeRedox eff) Unit)
-  -> (dsl -> state -> Aff (ReadWriteRedox eff) state)
+  -> (Free dsl (state -> state) -> state -> Aff (ReadWriteRedox eff) state)
   -> Store state
-  -> dsl
+  -> Free dsl (state -> state)
   -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
 dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> coerceAff <<< interp dsl) store cmds
   where
@@ -58,9 +59,9 @@ dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> coerceAff <<<
 dispatchP
   :: forall state dsl eff
    . (Error -> Eff (ReadWriteSubscribeRedox eff) Unit)
-  -> (dsl -> state -> Aff eff state)
+   -> (Free dsl (state -> state) -> state -> Aff eff state)
   -> Store state
-  -> dsl
+  -> Free dsl (state -> state)
   -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
 dispatchP errFn interp store cmds =
   _dispatch errFn (\_ -> pure unit) (\dsl -> coerceAff <<< interp dsl) store cmds
