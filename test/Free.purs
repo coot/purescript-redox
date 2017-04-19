@@ -1,4 +1,4 @@
-module Test.DSL where 
+module Test.Free where 
 
 import Prelude
 import Data.Array as A
@@ -11,7 +11,7 @@ import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Control.Monad.Free (Free, liftF)
 import Data.Time.Duration (Milliseconds(..))
 import Redox.Utils (mkIncInterp)
-import Redox.DSL (dispatch, dispatchP)
+import Redox.Free (dispatch, dispatchP)
 import Redox.Store (Store, getState, mkStore, setState, ReadWriteRedox, ReadRedox, WriteRedox, CreateRedox, SubscribeRedox)
 import Test.Unit (TestSuite, failure, success, suite, test)
 import Test.Unit.Assert (assert)

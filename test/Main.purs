@@ -8,11 +8,11 @@ import Control.Monad.Eff.Exception (EXCEPTION)
 import Redox.Store (ReadRedox, WriteRedox, CreateRedox, SubscribeRedox)
 import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
-import Test.DSL (testSuite) as DSL
+import Test.Free (testSuite) as Free
 import Test.Store (testSuite) as Store
 
 main :: forall eff. Eff (readRedox :: ReadRedox, writeRedox :: WriteRedox, createRedox :: CreateRedox, subscribeRedox :: SubscribeRedox, avar :: AVAR, console :: CONSOLE, testOutput :: TESTOUTPUT, err :: EXCEPTION | eff) Unit
 main = runTest do
-  DSL.testSuite
+  Free.testSuite
   Store.testSuite
 

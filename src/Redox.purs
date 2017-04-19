@@ -1,9 +1,9 @@
 module Redox
-  ( module DSL
+  ( module Free
   , module Store
   , module Utils
   ) where
 
-import Redox.DSL as DSL
+import Redox.Free as Free
 import Redox.Store as Store
 import Redox.Utils as Utils

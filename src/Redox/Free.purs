@@ -1,4 +1,4 @@
-module Redox.DSL
+module Redox.Free
   ( _dispatch
   , dispatch
   , dispatchP
