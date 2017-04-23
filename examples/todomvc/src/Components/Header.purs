@@ -1,17 +1,16 @@
 module TodoMVC.Components.Header where
 
 import Prelude
-import React as R
+import React (ReactClass, createClass, createElement, spec)
 import React.DOM as R
 import React.DOM.Props as P
-import React (Event, ReactClass, EventHandlerContext)
 import React.Redox (dispatch)
 import ReactHocs.Context (accessContext)
 import TodoMVC.Action (addTodo)
 import TodoMVC.Components.TodoTextInput (todoTextInput)
 
 header :: ReactClass Unit
-header = accessContext $ R.createClass $ ((R.spec unit renderFn) { displayName = "Header" })
+header = accessContext $ createClass $ ((spec unit renderFn) { displayName = "Header" })
   where
     handleSave this text =
       if text /= ""
@@ -21,7 +20,7 @@ header = accessContext $ R.createClass $ ((R.spec unit renderFn) { displayName =
     renderFn this = do
       pure $ R.header [ P.className "header" ]
         [ R.h1' [ R.text "todos" ]
-        , R.createElement todoTextInput
+        , createElement todoTextInput
           { onSave: handleSave this
           , newTodo: true
           , editing: false

@@ -2,8 +2,7 @@ module TodoMVC.Components.Footer where
 
 import Prelude
 import Data.Array (singleton)
-import React as R
-import React (ReactClass, Event, EventHandlerContext)
+import React (ReactClass, Event, EventHandlerContext, createClass, getProps, spec)
 import React.DOM as R
 import React.DOM.Props as P
 
@@ -16,7 +15,7 @@ footer :: ReactClass
   , onShow :: Filter -> Event -> EventHandlerContext _ _ Unit Unit
   , onClearCompleted :: Event -> EventHandlerContext _ _ Unit Unit
   }
-footer = R.createClass ((R.spec unit renderFn) { displayName = "Footer" })
+footer = createClass ((spec unit renderFn) { displayName = "Footer" })
   where
     renderTodoCount props = 
       let activeCount = props.activeCount
@@ -39,7 +38,7 @@ footer = R.createClass ((R.spec unit renderFn) { displayName = "Footer" })
       in R.button [ P.className "clear-completed", P.onClick onClearCompleted ] [ R.text "Clear completed" ]
 
     renderFn this = do
-      props <- R.getProps this
+      props <- getProps this
       pure $ R.footer [ P.className "footer" ]
               [ renderTodoCount props
               , R.ul [ P.className "filters" ] $

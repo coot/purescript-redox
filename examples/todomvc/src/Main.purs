@@ -12,9 +12,7 @@ import Data.Maybe (fromJust)
 import Partial.Unsafe (unsafePartial)
 import React (ReactElement, createElement)
 import ReactDOM (render)
-import TodoMVC.Components.MainSection (mainSection)
 import TodoMVC.Components.App (app)
-import TodoMVC.Types (Filter(..))
 
 main :: forall eff. Eff (dom :: DOM | eff) Unit
 main = void $ (elm' >>= render ui)

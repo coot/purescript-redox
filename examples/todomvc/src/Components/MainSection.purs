@@ -1,33 +1,27 @@
 module TodoMVC.Components.MainSection where
 
 import Prelude
-import React as R
+import React (ReactClass, ReactElement, createClass, createElement, getProps, readState, writeState, spec)
 import React.DOM as R
 import React.DOM.Props as P
-import Data.Array (filter)
-import Data.Array (length)
+import Data.Array (filter, length)
 import Data.Lens (lens)
 import Data.Lens.Types (Lens')
 import Data.Newtype (unwrap)
-import Data.Tuple (Tuple(..))
-import React.Redox (connect, dispatch, withStore)
-import ReactHocs (accessContext)
+import React.Redox (connect, dispatch)
 import TodoMVC.Action (clearCompleted, completeAll)
 import TodoMVC.Components.Footer (footer)
-import TodoMVC.Components.Header (header)
 import TodoMVC.Components.TodoItem (todoItem)
-import TodoMVC.Store (store)
 import TodoMVC.Types (State, Todo, Filter(..))
-import TodoMVC.Utils (classNames)
 
 _lens :: Lens' State State
 _lens = lens id (flip const)
 
-mainSection :: R.ReactClass Unit
-mainSection = connect _lens (\todos _ -> { todos }) $ R.createClass $ ((R.spec { filter: All } renderFn) { displayName = "MainSection" })
+mainSection :: ReactClass Unit
+mainSection = connect _lens (\_ todos _ -> { todos }) $ createClass $ ((spec { filter: All } renderFn) { displayName = "MainSection" })
     where
       handleShow this fltr ev =
-        void $ R.writeState this { filter: fltr }
+        void $ writeState this { filter: fltr }
 
       handleClearCompleted this ev =
         void $ dispatch this clearCompleted
@@ -47,7 +41,7 @@ mainSection = connect _lens (\todos _ -> { todos }) $ R.createClass $ ((R.spec {
 
       renderFooter this todos fltr allCount activeCount completedCount =
         if allCount > 0
-          then [ R.createElement footer
+          then [ createElement footer
                   { completedCount
                   , activeCount
                   , filter: fltr
@@ -58,14 +52,14 @@ mainSection = connect _lens (\todos _ -> { todos }) $ R.createClass $ ((R.spec {
                ]
           else []
 
-      renderTodo :: Todo -> R.ReactElement
+      renderTodo :: Todo -> ReactElement
       renderTodo td =
         let td_ = unwrap td
-        in R.createElement todoItem { todo: td } []
+        in createElement todoItem { todo: td } []
 
       renderFn this = do
-        todos <- R.getProps this >>= pure <<< _.todos
-        fltr <- R.readState this >>= pure <<< _.filter
+        todos <- getProps this >>= pure <<< _.todos
+        fltr <- readState this >>= pure <<< _.filter
         let
             allCount = length todos
             completedCount = length $ filter (_.completed <<< unwrap) todos

@@ -1,20 +1,14 @@
 module TodoMVC.Store where
 
-import Prelude
 import Control.Comonad.Cofree (Cofree, exploreM, unfoldCofree)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Console (log)
-import Control.Monad.Eff.Unsafe (unsafeCoerceEff)
 import Control.Monad.Aff (Aff)
-import Data.Array (snoc, filter, mapWithIndex, replicate)
+import Data.Array (snoc, filter)
 import Data.Foldable (all, foldl)
 import Data.Newtype (unwrap, over)
-import Prelude (class Functor, id, map, max, not, ($), (+), (/=), (<<<), (==))
+import Prelude (class Functor, id, map, max, not, pure, ($), (<$>), (+), (/=), (<<<), (==))
 import Redox (Store, mkStoreG)
-import Redox.Utils (mkIncInterp)
 import TodoMVC.Action (Action(..), ActionDSL)
 import TodoMVC.Types (Todo(..), State)
-import Global.Unsafe (unsafeStringify)
 
 newtype Run eff a = Run
   { addTodo :: String -> Aff eff a
