@@ -2,6 +2,7 @@ module Redox.Free
   ( _dispatch
   , dispatch
   , dispatchP
+  , Interp
   ) where
 
 import Prelude
@@ -14,11 +15,13 @@ import Control.Monad.Free (Free)
 import Data.Foldable (sequence_)
 import Redox.Store (Store, ReadWriteRedox, ReadWriteSubscribeRedox)
 
+type Interp dsl state eff = Free dsl (state -> state) -> state -> Aff eff state
+
 _dispatch
   :: forall state dsl eff
    . (Error -> Eff (ReadWriteSubscribeRedox eff) Unit)
   -> (state -> Eff (ReadWriteSubscribeRedox eff) Unit)
-  -> (Free dsl (state -> state) -> state -> Aff (ReadWriteSubscribeRedox eff) state)
+  -> Interp dsl state (ReadWriteSubscribeRedox eff)
   -> Store state
   -> Free dsl (state -> state)
   -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
@@ -37,7 +40,7 @@ _dispatch errFn succFn interp store cmds =
 dispatch
   :: forall state dsl eff
    . (Error -> Eff (ReadWriteSubscribeRedox eff) Unit)
-  -> (Free dsl (state -> state) -> state -> Aff (ReadWriteRedox eff) state)
+  -> Interp dsl state (ReadWriteRedox eff)
   -> Store state
   -> Free dsl (state -> state)
   -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
@@ -59,7 +62,7 @@ dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> coerceAff <<<
 dispatchP
   :: forall state dsl eff
    . (Error -> Eff (ReadWriteSubscribeRedox eff) Unit)
-   -> (Free dsl (state -> state) -> state -> Aff eff state)
+  -> Interp dsl state eff
   -> Store state
   -> Free dsl (state -> state)
   -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
