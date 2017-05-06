@@ -13,18 +13,18 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (Error)
 import Control.Monad.Free (Free)
 import Data.Foldable (sequence_)
-import Redox.Store (Store, ReadWriteRedox, ReadWriteSubscribeRedox)
+import Redox.Store (Store, REDOX)
 
 type Interp dsl state eff = Free dsl (state -> state) -> state -> Aff eff state
 
 _dispatch
   :: forall state dsl eff
-   . (Error -> Eff (ReadWriteSubscribeRedox eff) Unit)
-  -> (state -> Eff (ReadWriteSubscribeRedox eff) Unit)
-  -> Interp dsl state (ReadWriteSubscribeRedox eff)
+   . (Error -> Eff (redox :: REDOX | eff) Unit)
+  -> (state -> Eff (redox :: REDOX | eff) Unit)
+  -> Interp dsl state (redox :: REDOX | eff)
   -> Store state
   -> Free dsl (state -> state)
-  -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
+  -> Eff (redox :: REDOX | eff) (Canceler (redox :: REDOX | eff))
 _dispatch errFn succFn interp store cmds =
   do
     state <- O.getState store
@@ -39,11 +39,11 @@ _dispatch errFn succFn interp store cmds =
 -- | over the commands.
 dispatch
   :: forall state dsl eff
-   . (Error -> Eff (ReadWriteSubscribeRedox eff) Unit)
-  -> Interp dsl state (ReadWriteRedox eff)
+   . (Error -> Eff (redox :: REDOX | eff) Unit)
+  -> Interp dsl state (redox :: REDOX | eff)
   -> Store state
   -> Free dsl (state -> state)
-  -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
+  -> Eff (redox :: REDOX | eff) (Canceler (redox :: REDOX | eff))
 dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> coerceAff <<< interp dsl) store cmds
   where
     succFn state = do
@@ -53,7 +53,7 @@ dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> coerceAff <<<
       subs <- O.getSubs store
       sequence_ ((_ $ state) <$> subs)
 
-    coerceAff :: forall a. Aff (ReadWriteRedox eff) a -> Aff (ReadWriteSubscribeRedox eff) a
+    coerceAff :: forall a. Aff (redox :: REDOX | eff) a -> Aff (redox :: REDOX | eff) a
     coerceAff = unsafeCoerceAff
 
 -- | Dispatch function which does not handle store updates.  That's useful if
@@ -61,14 +61,14 @@ dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> coerceAff <<<
 -- | `Redox.Utils.mkIncInterp` to create such interpreter.
 dispatchP
   :: forall state dsl eff
-   . (Error -> Eff (ReadWriteSubscribeRedox eff) Unit)
+   . (Error -> Eff (redox :: REDOX | eff) Unit)
   -> Interp dsl state eff
   -> Store state
   -> Free dsl (state -> state)
-  -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
+  -> Eff (redox :: REDOX | eff) (Canceler (redox :: REDOX | eff))
 dispatchP errFn interp store cmds =
   _dispatch errFn (\_ -> pure unit) (\dsl -> coerceAff <<< interp dsl) store cmds
 
  where
-   coerceAff :: forall a. Aff eff a -> Aff (ReadWriteSubscribeRedox eff) a
+   coerceAff :: forall a. Aff eff a -> Aff (redox :: REDOX | eff) a
    coerceAff = unsafeCoerceAff
