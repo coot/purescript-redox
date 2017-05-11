@@ -1,23 +1,22 @@
 module Redox.Store
-  ( CreateRedox
-  , ReadOnlyRedox
+  ( RedoxState
+  , CreateRedox
   , ReadRedox
+  , WriteRedox
+  , SubscribeRedox
+  , ReadOnlyRedox
+  , WriteOnlyRedox
   , ReadWriteRedox
   , ReadWriteSubscribeRedox
+  , REDOX
   , Store
-  , SubscribeRedox
   , SubscriptionId(..)
-  , WriteOnlyRedox
-  , WriteRedox
   , getState
   , getSubs
   , mapStore
   , mkStore
   , mkStoreG
-  , performWriteRedoxEff
-  , performCreateRedoxEff
-  , performReadRedoxEff
-  , performReadWriteRedoxEff
+  , performRedoxEff
   , setState
   , subscribe
   , unsubscribe
@@ -42,19 +41,23 @@ foreign import data WriteRedox :: Effect
 -- | Effect for (un)subscribing to the store
 foreign import data SubscribeRedox :: Effect
 
-type ReadOnlyRedox eff = (readRedox :: ReadRedox | eff)
+foreign import data RedoxState :: # Effect -> Effect
 
-type WriteOnlyRedox eff = (writeRedox :: WriteRedox | eff)
+type ReadOnlyRedox = (read :: ReadRedox)
 
-type ReadWriteRedox eff = (readRedox :: ReadRedox, writeRedox :: WriteRedox | eff)
+type WriteOnlyRedox = (write :: WriteRedox)
 
-type ReadWriteSubscribeRedox eff = (readRedox :: ReadRedox, writeRedox :: WriteRedox, subscribeRedox :: SubscribeRedox | eff)
+type ReadWriteRedox = (read :: ReadRedox, write :: WriteRedox)
+
+type ReadWriteSubscribeRedox = (read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox)
+
+type REDOX = (state :: RedoxState ReadWriteSubscribeRedox)
 
 foreign import data Store :: Type -> Type
 
 -- | Make store with initial state. Store is a mutable container with
 -- | a subscription mechanism.
-foreign import mkStore :: forall state eff. state -> Eff (createRedox :: CreateRedox | eff) (Store state)
+foreign import mkStore :: forall state e eff. state -> Eff (state :: RedoxState (createRedox :: CreateRedox | e) | eff) (Store state)
 
 newtype SubscriptionId = SubscriptionId Int
 
@@ -69,55 +72,45 @@ instance ordSubscriptionId :: Ord SubscriptionId where
   compare = gCompare
 
 foreign import _subscribe
-  :: forall state eff eff'
+  :: forall state e eff eff'
    . Store state
   -> (state -> Eff eff' Unit)
-  -> Eff (subscribeRedox :: SubscribeRedox | eff) Int
+  -> Eff (state :: RedoxState (subscribe :: SubscribeRedox | e) | eff) Int
 
 -- | Subscribe to store updates.  Note that store updates are not run by the
 -- | store itself.  That is left to dispatch or the DSL interpreter.
 -- | It returns id of the subscribed callback.  You can use it to remove the subscription.
 subscribe
-  :: forall state eff eff'
+  :: forall state e eff eff'
    . Store state
   -> (state -> Eff eff' Unit)
-  -> Eff (subscribeRedox :: SubscribeRedox | eff) SubscriptionId
+  -> Eff (state :: RedoxState (subscribe :: SubscribeRedox | e) | eff) SubscriptionId
 subscribe store fn = wrap <$> _subscribe store fn
 
-foreign import _unsubscribe :: forall state eff. Store state -> Int -> Eff (subscribeRedox :: SubscribeRedox | eff) Unit
+foreign import _unsubscribe :: forall state e eff. Store state -> Int -> Eff (state :: RedoxState (subscribe :: SubscribeRedox | e) | eff) Unit
 
 -- | Remove a subscription with a given id.
-unsubscribe :: forall state eff. Store state -> SubscriptionId -> Eff (subscribeRedox :: SubscribeRedox | eff) Unit
+unsubscribe :: forall state e eff. Store state -> SubscriptionId -> Eff (state :: RedoxState (subscribe :: SubscribeRedox | e) | eff) Unit
 unsubscribe store sid = _unsubscribe store $ unwrap sid
 
-foreign import mapStore :: forall state state' eff. (state -> state') -> Store state -> Eff (ReadWriteRedox eff)  (Store state')
+foreign import mapStore :: forall state state' e eff. (state -> state') -> Store state -> Eff (state :: RedoxState (read :: ReadRedox, write :: WriteRedox | e) | eff) (Store state')
 
-foreign import setState :: forall state eff. Store state -> state -> Eff (WriteOnlyRedox eff) (Store state)
+foreign import setState :: forall state e eff. Store state -> state -> Eff (state :: RedoxState (write :: WriteRedox | e) | eff) (Store state)
 
-foreign import getState :: forall state eff. Store state -> Eff (ReadOnlyRedox eff) state
+foreign import getState :: forall state e eff. Store state -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) state
 
 -- | Get subscriptions.
-foreign import getSubs :: forall state eff. Store state -> Eff (readRedox :: ReadRedox | eff) (Array (state -> Eff (readRedox :: ReadRedox | eff) Unit))
+foreign import getSubs :: forall state e eff. Store state -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) (Array (state -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) Unit))
 
 instance functorStore :: Functor Store where
   map fn store = unsafePerformEff $ mapStore fn store
 
-
-performCreateRedoxEff :: forall a. Eff (createRedox :: CreateRedox) a -> a
-performCreateRedoxEff = unsafeCoerce unsafePerformEff
-
-performWriteRedoxEff :: forall a. Eff (WriteOnlyRedox ()) a -> a
-performWriteRedoxEff = unsafeCoerce unsafePerformEff
-
-performReadRedoxEff :: forall a. Eff (ReadOnlyRedox ()) a -> a
-performReadRedoxEff = unsafeCoerce unsafePerformEff
-
-performReadWriteRedoxEff :: forall a. Eff (ReadWriteRedox ()) a -> a
-performReadWriteRedoxEff = unsafeCoerce unsafePerformEff
+performRedoxEff :: forall a e. Eff (state :: RedoxState e) a -> a
+performRedoxEff = unsafeCoerce unsafePerformEff
 
 -- | Make store outside of Eff monad (global).
 mkStoreG :: forall state. state -> Store state
-mkStoreG = performCreateRedoxEff <<< mkStore'
+mkStoreG = performRedoxEff <<< mkStore'
   where
-    mkStore' :: state -> Eff (createRedox :: CreateRedox) (Store state)
+    mkStore' :: state -> Eff (state :: RedoxState (create :: CreateRedox)) (Store state)
     mkStore' = unsafeCoerceEff <<< mkStore

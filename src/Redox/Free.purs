@@ -8,23 +8,22 @@ module Redox.Free
 import Prelude
 import Redox.Store as O
 import Control.Monad.Aff (Aff, Canceler, runAff)
-import Control.Monad.Aff.Unsafe (unsafeCoerceAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (Error)
 import Control.Monad.Free (Free)
 import Data.Foldable (sequence_)
-import Redox.Store (Store, ReadWriteRedox, ReadWriteSubscribeRedox)
+import Redox.Store (ReadRedox, RedoxState, Store)
 
 type Interp dsl state eff = Free dsl (state -> state) -> state -> Aff eff state
 
 _dispatch
-  :: forall state dsl eff
-   . (Error -> Eff (ReadWriteSubscribeRedox eff) Unit)
-  -> (state -> Eff (ReadWriteSubscribeRedox eff) Unit)
-  -> Interp dsl state (ReadWriteSubscribeRedox eff)
+  :: forall state dsl eff e
+   . (Error -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) Unit)
+  -> (state -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) Unit)
+  -> Interp dsl state (state :: RedoxState (read :: ReadRedox | e) | eff)
   -> Store state
   -> Free dsl (state -> state)
-  -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
+  -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) (Canceler (state :: RedoxState (read :: ReadRedox | e) | eff))
 _dispatch errFn succFn interp store cmds =
   do
     state <- O.getState store
@@ -38,13 +37,13 @@ _dispatch errFn succFn interp store cmds =
 -- | dispatches all the commands at once when the interpreter finished running
 -- | over the commands.
 dispatch
-  :: forall state dsl eff
-   . (Error -> Eff (ReadWriteSubscribeRedox eff) Unit)
-  -> Interp dsl state (ReadWriteRedox eff)
+  :: forall state dsl eff e
+   . (Error -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) Unit)
+  -> Interp dsl state (state :: RedoxState (read :: ReadRedox | e) | eff)
   -> Store state
   -> Free dsl (state -> state)
-  -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
-dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> coerceAff <<< interp dsl) store cmds
+  -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) (Canceler (state :: RedoxState (read :: ReadRedox | e) | eff))
+dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> interp dsl) store cmds
   where
     succFn state = do
       -- update store state
@@ -53,22 +52,15 @@ dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> coerceAff <<<
       subs <- O.getSubs store
       sequence_ ((_ $ state) <$> subs)
 
-    coerceAff :: forall a. Aff (ReadWriteRedox eff) a -> Aff (ReadWriteSubscribeRedox eff) a
-    coerceAff = unsafeCoerceAff
-
 -- | Dispatch function which does not handle store updates.  That's useful if
 -- | the interpreter is updating the store. You can use
 -- | `Redox.Utils.mkIncInterp` to create such interpreter.
 dispatchP
-  :: forall state dsl eff
-   . (Error -> Eff (ReadWriteSubscribeRedox eff) Unit)
-  -> Interp dsl state eff
+  :: forall state dsl eff e
+   . (Error -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) Unit)
+  -> Interp dsl state (state :: RedoxState (read :: ReadRedox | e) | eff)
   -> Store state
   -> Free dsl (state -> state)
-  -> Eff (ReadWriteSubscribeRedox eff) (Canceler (ReadWriteSubscribeRedox eff))
+  -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) (Canceler (state :: RedoxState (read :: ReadRedox | e) | eff))
 dispatchP errFn interp store cmds =
-  _dispatch errFn (\_ -> pure unit) (\dsl -> coerceAff <<< interp dsl) store cmds
-
- where
-   coerceAff :: forall a. Aff eff a -> Aff (ReadWriteSubscribeRedox eff) a
-   coerceAff = unsafeCoerceAff
+  _dispatch errFn (\_ -> pure unit) (\dsl -> interp dsl) store cmds
