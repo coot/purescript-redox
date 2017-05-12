@@ -18,12 +18,12 @@ type Interp dsl state eff = Free dsl (state -> state) -> state -> Aff eff state
 
 _dispatch
   :: forall state dsl eff e
-   . (Error -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) Unit)
-  -> (state -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) Unit)
-  -> Interp dsl state (state :: RedoxState (read :: ReadRedox | e) | eff)
+   . (Error -> Eff (redox :: RedoxState (read :: ReadRedox | e) | eff) Unit)
+  -> (state -> Eff (redox :: RedoxState (read :: ReadRedox | e) | eff) Unit)
+  -> Interp dsl state (redox :: RedoxState (read :: ReadRedox | e) | eff)
   -> Store state
   -> Free dsl (state -> state)
-  -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) (Canceler (state :: RedoxState (read :: ReadRedox | e) | eff))
+  -> Eff (redox :: RedoxState (read :: ReadRedox | e) | eff) (Canceler (redox :: RedoxState (read :: ReadRedox | e) | eff))
 _dispatch errFn succFn interp store cmds =
   do
     state <- O.getState store
@@ -38,11 +38,11 @@ _dispatch errFn succFn interp store cmds =
 -- | over the commands.
 dispatch
   :: forall state dsl eff e
-   . (Error -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) Unit)
-  -> Interp dsl state (state :: RedoxState (read :: ReadRedox | e) | eff)
+   . (Error -> Eff (redox :: RedoxState (read :: ReadRedox | e) | eff) Unit)
+  -> Interp dsl state (redox :: RedoxState (read :: ReadRedox | e) | eff)
   -> Store state
   -> Free dsl (state -> state)
-  -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) (Canceler (state :: RedoxState (read :: ReadRedox | e) | eff))
+  -> Eff (redox :: RedoxState (read :: ReadRedox | e) | eff) (Canceler (redox :: RedoxState (read :: ReadRedox | e) | eff))
 dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> interp dsl) store cmds
   where
     succFn state = do
@@ -57,10 +57,10 @@ dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> interp dsl) s
 -- | `Redox.Utils.mkIncInterp` to create such interpreter.
 dispatchP
   :: forall state dsl eff e
-   . (Error -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) Unit)
-  -> Interp dsl state (state :: RedoxState (read :: ReadRedox | e) | eff)
+   . (Error -> Eff (redox :: RedoxState (read :: ReadRedox | e) | eff) Unit)
+  -> Interp dsl state (redox :: RedoxState (read :: ReadRedox | e) | eff)
   -> Store state
   -> Free dsl (state -> state)
-  -> Eff (state :: RedoxState (read :: ReadRedox | e) | eff) (Canceler (state :: RedoxState (read :: ReadRedox | e) | eff))
+  -> Eff (redox :: RedoxState (read :: ReadRedox | e) | eff) (Canceler (redox :: RedoxState (read :: ReadRedox | e) | eff))
 dispatchP errFn interp store cmds =
   _dispatch errFn (\_ -> pure unit) (\dsl -> interp dsl) store cmds
