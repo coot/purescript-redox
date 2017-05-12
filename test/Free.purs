@@ -1,19 +1,16 @@
 module Test.Free where 
 
 import Prelude
-import Data.Array as A
-import Control.Comonad.Cofree (Cofree, exploreM, hoistCofree, unfoldCofree, head, tail, (:<))
-import Control.Monad.Aff (Aff, forkAff, delay)
+import Control.Comonad.Cofree (Cofree, exploreM, unfoldCofree)
+import Control.Monad.Aff (Aff, delay)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Console (log)
-import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Control.Monad.Free (Free, liftF)
 import Data.Time.Duration (Milliseconds(..))
-import Redox.Utils (mkIncInterp)
 import Redox.Free (dispatch, dispatchP)
-import Redox.Store (Store, getState, mkStore, setState, ReadWriteRedox, ReadRedox, WriteRedox, CreateRedox, SubscribeRedox)
-import Test.Unit (TestSuite, failure, success, suite, test)
+import Redox.Store (Store, getState, mkStore, RedoxStore, ReadRedox, WriteRedox, CreateRedox, SubscribeRedox)
+import Redox.Utils (mkIncInterp)
+import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert (assert)
 
 foreign import unsafeLog :: forall a e. a -> Eff e Unit
@@ -52,9 +49,9 @@ newtype Run eff a = Run
   }
 
 instance functorRun :: Functor (Run eff) where
-  map f (Run { increment, incrementSync }) = 
-    Run { increment: map f <<< increment
-        , incrementSync: map f <<< incrementSync
+  map f (Run { increment: i, incrementSync: is }) = 
+    Run { increment: map f <<< i
+        , incrementSync: map f <<< is
         }
 
 -- | Basic interpreter.  We only specify how the state will be updated.
@@ -70,17 +67,17 @@ mkInterp :: forall eff. Int -> Interp eff Int
 mkInterp state = unfoldCofree id next state
   where
     next :: Int -> Run eff Int
-    next st = Run { increment: increment st
-                  , incrementSync: incrementSync st
+    next st = Run { increment: _increment st
+                  , incrementSync: _incrementSync st
                   }
 
-    increment :: Int -> Int -> Aff eff Int
-    increment a b = do
+    _increment :: Int -> Int -> Aff eff Int
+    _increment a b = do
       delay $ Milliseconds 0.0
       pure (a + b)
 
-    incrementSync :: Int -> Int -> Aff eff Int
-    incrementSync a b = pure (a + b)
+    _incrementSync :: Int -> Int -> Aff eff Int
+    _incrementSync a b = pure (a + b)
 
 -- | We need to pair the `Command` and `Run`.  This makes `Run` a dual to
 -- | `Command`.  And you can see why `Run` has to have a product type.
@@ -101,8 +98,8 @@ runIncInterp :: forall eff. Store Int -> DSL (Int -> Int) -> Int -> Aff eff Int
 runIncInterp store cmds state = exploreM pair cmds $ mkIncInterp store (mkInterp state)
 
 -- | `cmds` is a simple program in our DSL
-cmds :: DSL (Int -> Int)
-cmds = do 
+cmds1 :: DSL (Int -> Int)
+cmds1 = do 
   increment 10
   increment (-5)
   pure id
@@ -114,7 +111,7 @@ cmds2 = do
   incrementSync (-5)
   pure id
 
-testSuite :: forall eff. TestSuite (readRedox :: ReadRedox, writeRedox :: WriteRedox, createRedox :: CreateRedox, subscribeRedox :: SubscribeRedox | eff)
+testSuite :: forall eff. TestSuite (redox :: RedoxStore (create :: CreateRedox, read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox) | eff)
 testSuite =
 
   suite "DSL" do
@@ -125,7 +122,7 @@ testSuite =
         (\_ -> pure unit)
         runInterp
         store
-        cmds
+        cmds1
       state <- liftEff $ getState store
       assert "store updated synchronously" (state == 0)
 
@@ -135,7 +132,7 @@ testSuite =
         (\_ -> pure unit)
         runInterp
         store
-        cmds
+        cmds1
       state <- do
         delay $ Milliseconds 10.0
         liftEff $ getState store
@@ -162,14 +159,14 @@ testSuite =
           increment 1
           increment 1
           pure id
-      state <- liftEff $ getState store
-      assert ("store should update " <> show state) (state == 1)
-      state <- do
+      state1 <- liftEff $ getState store
+      assert ("store should update " <> show state1) (state1 == 1)
+      state2 <- do
         delay $ Milliseconds 0.0
         liftEff $ getState store
-      assert ("store should increment " <> show state <> " expected 2") (state == 2)
-      state <- do
+      assert ("store should increment " <> show state2 <> " expected 2") (state2 == 2)
+      state3 <- do
         delay $ Milliseconds 0.0
         liftEff $ getState store
-      assert ("store should increment " <> show state <> " expected 3") (state == 3)
+      assert ("store should increment " <> show state3 <> " expected 3") (state3 == 3)
 

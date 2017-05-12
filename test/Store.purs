@@ -2,18 +2,18 @@ module Test.Store
   (testSuite)
   where
 
-import Prelude
+import Prelude (Unit, add, bind, const, discard, map, pure, show, unit, ($), (<<<), (<>), (==), (>>=))
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Data.Array as A
 import Data.Maybe (Maybe(..))
-import Redox.Store
-import Test.Unit (TestSuite, failure, success, suite, test)
+import Redox.Store (CreateRedox, ReadRedox, RedoxStore, SubscribeRedox, getState, getSubs, mkStore, subscribe, unsubscribe)
+import Test.Unit (TestSuite, failure, suite, test)
 import Test.Unit.Assert (assert)
 
 foreign import eqFns :: forall a eff. (a -> Eff eff Unit) -> (a -> Eff eff Unit) -> Boolean
 
-testSuite :: forall eff. TestSuite (readRedox :: ReadRedox, createRedox :: CreateRedox, subscribeRedox :: SubscribeRedox | eff)
+testSuite :: forall e eff. TestSuite (redox :: RedoxStore (create :: CreateRedox, read :: ReadRedox, subscribe :: SubscribeRedox | e) | eff)
 testSuite = do
 
   suite "Store" $ do
