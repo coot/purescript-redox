@@ -8,6 +8,7 @@ module Redox.Store
   , WriteOnlyRedox
   , ReadWriteRedox
   , ReadWriteSubscribeRedox
+  , CreateReadWriteSubscribeRedox
   , REDOX
   , Store
   , SubscriptionId(..)
@@ -51,7 +52,9 @@ type ReadWriteRedox = (read :: ReadRedox, write :: WriteRedox)
 
 type ReadWriteSubscribeRedox = (read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox)
 
-type REDOX = RedoxStore ReadWriteSubscribeRedox
+type CreateReadWriteSubscribeRedox = (create :: CreateRedox, read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox)
+
+type REDOX = RedoxStore CreateReadWriteSubscribeRedox
 
 foreign import data Store :: Type -> Type
 
