@@ -1,9 +1,20 @@
-module Redox.Utils where
+module Redox.Utils 
+  ( hoistCofree'
+  , mkIncInterp
+  , addLogger
+  ) where
 
 import Prelude
+
 import Control.Comonad.Cofree (Cofree, head, tail, (:<))
-import Redox.Store as O
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Console (CONSOLE)
+import Control.Monad.Eff.Now (NOW, now)
+import Control.Monad.Eff.Unsafe (unsafePerformEff)
+import Data.DateTime.Instant (Instant)
+import Data.JSDate (JSDate, getHours, getMilliseconds, getMinutes, getSeconds)
 import Redox.Store (Store)
+import Redox.Store as O
 
 -- | A version of `hoistCofree`, where `nat` does not need to come from natural
 -- | transformation.
@@ -12,24 +23,6 @@ import Redox.Store (Store)
 -- | in the [redux](https://github.com/reactjs/redux) library.
 -- | You can use this function to add effects to your interpreter, like
 -- | logging, optimistic updates, undo/redo stack, delayed actions... 
--- | For example a simple logger:
--- | ```purescript
--- | addLogger
--- |   :: forall state f
--- |    . (Functor f)
--- |   => Cofree f state
--- |   -> Cofree f state
--- | addLogger interp = hoistCofree' nat interp
--- |   where
--- |     nat :: f (Cofree f state) -> f (Cofree f state)
--- |     nat fa = g <$> fa
--- | 
--- |     g :: Cofree f state -> Cofree f state
--- |     g cof = unsafePerformEff do
--- |       -- Control.Comonad.Cofree.head 
--- |       log $ unsafeCoerce (head cof)
--- |       pure cof
--- | ```purescript
 hoistCofree'
   :: forall f state
    . (Functor f)
@@ -56,3 +49,37 @@ mkIncInterp store interp = hoistCofree' nat interp
 
     g :: Cofree f state -> Cofree f state
     g cof = O.performRedoxEff $ cof <$ O.setState store (head cof)
+
+foreign import logValues :: forall a e. Array a -> Eff (console :: CONSOLE | e) Unit
+
+foreign import toJSDate :: Instant -> JSDate
+
+-- | Add logger to the interpreter which logs updates version of store on each
+-- | update.
+addLogger
+  :: forall state f
+   . Functor f
+  => (state -> String)
+  -> Cofree f state
+  -> Cofree f state
+addLogger toString = hoistCofree' (map nat)
+  where
+    nat :: Cofree f state -> Cofree f state
+    nat cof = 
+      let state = head cof
+      in performEff do
+        n <- now 
+        logValues ["redox", (formatTime n), toString state ]
+        pure cof
+
+    performEff :: forall a. Eff (console :: CONSOLE, now :: NOW) a -> a
+    performEff = unsafePerformEff
+
+    formatTime :: Instant -> String
+    formatTime i = unsafePerformEff do
+      let dt = toJSDate i
+      h <- getHours dt
+      m <- getMinutes dt
+      s <- getSeconds dt
+      ms <- getMilliseconds dt
+      pure $ show h <> ":" <> show m <> ":" <> show s <> "." <> show ms
