@@ -1,5 +1,7 @@
 # REDOX - global state management for PureScript apps
 
+[![Maintainer: coot](https://img.shields.io/badge/maintainer-coot-lightgrey.svg)](http://github.com/coot) [![documentation](https://pursuit.purescript.org/packages/purescript-redox/badge)](https://pursuit.purescript.org/packages/purescript-redox)
+
 Redox - since it mixes well with [Thermite](https://github.com/paf31/purescript-thermite) ;)
 
 This is `redux` type store, but instead of forcing you to write interpreter
