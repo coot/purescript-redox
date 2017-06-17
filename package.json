@@ -9,6 +9,7 @@
     "test": "pulp test"
   },
   "scripts": {
+    "build": "pulp build",
     "test": "pulp test"
   },
   "repository": {
