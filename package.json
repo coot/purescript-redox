@@ -1,0 +1,32 @@
+{
+  "name": "purescript-redox",
+  "version": "5.0.0",
+  "description": "Redux implementation for PureScript apps.",
+  "main": "index.js",
+  "directories": {
+    "example": "examples",
+    "build": "pulp build",
+    "test": "pulp test"
+  },
+  "scripts": {
+    "test": "pulp test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coot/purescript-redox.git"
+  },
+  "keywords": [
+    "redux",
+    "purescript",
+    "state"
+  ],
+  "author": "Marcin Szamotulski",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/coot/purescript-redox/issues"
+  },
+  "homepage": "https://github.com/coot/purescript-redox#readme",
+  "devDependencies": {
+    "pulp": "^11.0.0"
+  }
+}
