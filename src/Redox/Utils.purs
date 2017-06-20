@@ -12,7 +12,6 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Now (NOW, now)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Data.DateTime.Instant (Instant)
-import Data.JSDate (JSDate, getHours, getMilliseconds, getMinutes, getSeconds)
 import Redox.Store (Store)
 import Redox.Store as O
 
@@ -52,7 +51,7 @@ mkIncInterp store interp = hoistCofree' nat interp
 
 foreign import logValues :: forall a e. Array a -> Eff (console :: CONSOLE | e) Unit
 
-foreign import toJSDate :: Instant -> JSDate
+foreign import formatInstant :: Instant -> String
 
 -- | Add logger to the interpreter which logs updates version of store on each
 -- | update.
@@ -69,17 +68,8 @@ addLogger toString = hoistCofree' (map nat)
       let state = head cof
       in performEff do
         n <- now 
-        logValues ["redox", (formatTime n), toString state ]
+        logValues ["redox", formatInstant n, toString state]
         pure cof
 
     performEff :: forall a. Eff (console :: CONSOLE, now :: NOW) a -> a
     performEff = unsafePerformEff
-
-    formatTime :: Instant -> String
-    formatTime i = unsafePerformEff do
-      let dt = toJSDate i
-      h <- getHours dt
-      m <- getMinutes dt
-      s <- getSeconds dt
-      ms <- getMilliseconds dt
-      pure $ show h <> ":" <> show m <> ":" <> show s <> "." <> show ms

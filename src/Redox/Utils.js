@@ -6,6 +6,7 @@ exports.logValues = function(values) {
   }
 }
 
-exports.toJSDate = function(i) {
-  return new Date(i)
+exports.formatInstant = function(i) {
+  var d = new Date(i)
+  return d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds() + "." + d.getMilliseconds()
 }
