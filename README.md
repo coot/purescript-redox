@@ -65,8 +65,8 @@ dispatch do
 ```
 The `dispatch` will update the store when cmd2 finishes.  But you can build
 this into the interpreter.  Since this is common, there is a function in `Redox.Utils` to
-modify an interpreter of type `Cofree f a` so that it dispatches on every step
-of the `Cofree` comonad:
+modify an interpreter of type `Cofree f a` so that it updates the store on
+every step of the `Cofree` comonad:
 ```purescript
 Redox.Utils.mkIncInterp
   :: forall state f
@@ -75,8 +75,8 @@ Redox.Utils.mkIncInterp
   -> Cofree f state
   -> Cofree f state
 ```
-
-Since the interpreter is handling store updates, you can use
+Note that this function will not dispatch subscriptions.  If you build that
+into your interpreterer or you can use `dispatchP` which does not run subscriptions.
 ```purescript
 Redox.DSL.dispatchP
   :: forall state dsl eff
