@@ -49,7 +49,7 @@ dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> interp dsl) s
       -- update store state
       _ <- pure $ (const state) <$> store
       -- run subscriptions
-      subs <- O.getSubs store
+      subs <- O.getSubscriptions store
       sequence_ ((_ $ state) <$> subs)
 
 -- | Dispatch function which does not handle store updates.  That's useful if

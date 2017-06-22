@@ -7,7 +7,7 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Data.Array as A
 import Data.Maybe (Maybe(..))
-import Redox.Store (CreateRedox, ReadRedox, RedoxStore, SubscribeRedox, getState, getSubs, mkStore, subscribe, unsubscribe)
+import Redox.Store (CreateRedox, ReadRedox, RedoxStore, SubscribeRedox, getState, getSubscriptions, mkStore, subscribe, unsubscribe)
 import Test.Unit (TestSuite, failure, suite, test)
 import Test.Unit.Assert (assert)
 
@@ -25,7 +25,7 @@ testSuite = do
         assert ("wrong initial store value " <> show state) (state == 0)
 
       test "mkStore inital subscriptions" $ do
-        subs <- liftEff $ mkStore 0 >>= getSubs
+        subs <- liftEff $ mkStore 0 >>= getSubscriptions
         assert ("non empty initial subscriptions " <> show (A.length subs)) (A.null subs)
 
     suite "Functor Store" $ do
@@ -42,7 +42,7 @@ testSuite = do
           store <- liftEff $ mkStore 0
           _ <- liftEff $ subscribe store fn
 
-          subs <- liftEff $ getSubs store
+          subs <- liftEff $ getSubscriptions store
           assert ("store should have one subscription") (A.length subs == 1)
           case A.head subs of
             Nothing -> failure "ups..."
@@ -54,5 +54,5 @@ testSuite = do
           store <- liftEff $ mkStore 0
           sId <- liftEff $ subscribe store fn
           liftEff $ unsubscribe store sId
-          subs <- liftEff $ getSubs store
+          subs <- liftEff $ getSubscriptions store
           assert ("store should not have any subscriptions") (A.length subs == 0)

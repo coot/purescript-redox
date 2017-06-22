@@ -13,7 +13,7 @@ module Redox.Store
   , Store
   , SubscriptionId(..)
   , getState
-  , getSubs
+  , getSubscriptions
   , mapStore
   , mkStore
   , mkStoreG
@@ -103,7 +103,12 @@ foreign import setState :: forall state e eff. Store state -> state -> Eff (redo
 foreign import getState :: forall state e eff. Store state -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) state
 
 -- | Get subscriptions.
-foreign import getSubs :: forall state e eff. Store state -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) (Array (state -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) Unit))
+foreign import getSubscriptions
+  :: forall state e eff
+   . Store state
+   -> Eff
+      (redox :: RedoxStore (read :: ReadRedox | e) | eff)
+      (Array (state -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) Unit))
 
 instance functorStore :: Functor Store where
   map fn store = unsafePerformEff $ mapStore fn store

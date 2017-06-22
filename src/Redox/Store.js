@@ -34,7 +34,7 @@ exports.setState = function(store) {
   }
 }
 
-exports.getSubs = function(store) {
+exports.getSubscriptions = function(store) {
   return function() {
     return store.subscriptions
   }
