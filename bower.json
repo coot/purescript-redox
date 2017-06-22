@@ -23,11 +23,13 @@
     "purescript-aff": "^3.0.0",
     "purescript-generics": "4.0.0",
     "purescript-now": "^3.0.0",
-    "purescript-js-date": "^5.0.0"
+    "purescript-js-date": "^5.0.0",
+    "purescript-var": "^2.0.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0",
-    "purescript-test-unit": "^11.0.0"
+    "purescript-test-unit": "^11.0.0",
+    "purescript-debug": "^3.0.0"
   },
   "resolutions": {
     "purescript-lists": "^4.0.1",

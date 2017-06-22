@@ -1,15 +1,18 @@
 module Test.Free where 
 
 import Prelude
+
 import Control.Comonad.Cofree (Cofree, exploreM, unfoldCofree)
 import Control.Monad.Aff (Aff, delay)
-import Control.Monad.Eff (Eff)
+import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Var (Var, get, makeVar, set)
 import Control.Monad.Free (Free, liftF)
 import Data.Time.Duration (Milliseconds(..))
+import Redox (subscribe)
 import Redox.Free (dispatch, dispatchP)
 import Redox.Store (Store, getState, mkStore, RedoxStore, ReadRedox, WriteRedox, CreateRedox, SubscribeRedox)
-import Redox.Utils (mkIncInterp)
+import Redox.Utils (mkIncInterp, runSubscriptions)
 import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert (assert)
 
@@ -20,9 +23,7 @@ data Command a
   = Increment Int a
   | IncrementSync Int a
 
-instance functorCommand :: Functor Command where
-  map f (Increment i a) = Increment i (f a)
-  map f (IncrementSync i a) = IncrementSync i (f a)
+derive instance functorCommand :: Functor Command
 
 -- | This is the type for the abstract syntax tree of our DSL.  `Free` is
 -- | a tree type, and a monad.  The monadic property of it gives a nice way of
@@ -48,11 +49,7 @@ newtype Run eff a = Run
   , incrementSync :: Int -> Aff eff a
   }
 
-instance functorRun :: Functor (Run eff) where
-  map f (Run { increment: i, incrementSync: is }) = 
-    Run { increment: map f <<< i
-        , incrementSync: map f <<< is
-        }
+derive instance functorRun :: Functor (Run eff)
 
 -- | Basic interpreter.  We only specify how the state will be updated.
 -- | Cofree can be seen as an annotated tree, where each node holds the
@@ -89,13 +86,20 @@ pair (IncrementSync a next) (Run interp) = next <$> (interp.incrementSync a)
 -- | program. You can use `Redox.dispatch` to run programs with this
 -- | interpreter. It will update the store when a DSL program finishes.
 runInterp :: forall eff. DSL (Int -> Int) -> Int -> Aff eff Int
-runInterp cmds state = exploreM pair cmds $ mkInterp state
+runInterp cmds state =
+  exploreM pair cmds $ mkInterp state
 
 -- | `runIncInterp` is an enhanced version of `runInterp` which updates the
 -- | store on every step of computation. You can use `Redox.dispatchP` to run
 -- | DSL programs.
 runIncInterp :: forall eff. Store Int -> DSL (Int -> Int) -> Int -> Aff eff Int
-runIncInterp store cmds state = exploreM pair cmds $ mkIncInterp store (mkInterp state)
+runIncInterp store cmds state =
+  exploreM pair cmds $ (mkIncInterp store <<< mkInterp) state
+
+-- | `runSubscriptions` run all store subscriptions on each leaf of interpreter
+runIncWithSubsInterp :: forall eff. Store Int -> DSL (Int -> Int) -> Int -> Aff eff Int
+runIncWithSubsInterp store cmds state =
+  exploreM pair cmds $ (runSubscriptions store <<< mkIncInterp store <<< mkInterp) state
 
 -- | `cmds` is a simple program in our DSL
 cmds1 :: DSL (Int -> Int)
@@ -111,7 +115,16 @@ cmds2 = do
   incrementSync (-5)
   pure id
 
-testSuite :: forall eff. TestSuite (redox :: RedoxStore (create :: CreateRedox, read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox) | eff)
+
+-- counter
+foreign import data COUNT :: Effect
+foreign import getCounter :: forall eff. Eff (count :: COUNT | eff) Int
+foreign import setCounter :: forall eff. Int -> Eff (count :: COUNT | eff) Unit
+
+counter :: forall eff. Var (count :: COUNT | eff) Int
+counter = makeVar getCounter setCounter
+
+testSuite :: forall eff. TestSuite (redox :: RedoxStore (create :: CreateRedox, read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox), count :: COUNT | eff)
 testSuite =
 
   suite "DSL" do
@@ -170,3 +183,23 @@ testSuite =
         liftEff $ getState store
       assert ("store should increment " <> show state3 <> " expected 3") (state3 == 3)
 
+    test "runSubscriptions" $ do
+      liftEff $ set counter 0
+      store <- liftEff $ mkStore 0
+      _ <- liftEff $ subscribe store
+        (\_ -> do
+          c <- get counter
+          set counter (c + 1)
+          pure unit
+        )
+      _ <- liftEff $ dispatchP
+        (\_ -> pure unit)
+        (runIncWithSubsInterp store)
+        store
+        do
+          incrementSync 1
+          incrementSync 1
+          pure id
+      state <- liftEff $ getState store
+      c <- liftEff $ get counter
+      assert ("counter: got: " <> show c <> " expected: 2") $ c == 2

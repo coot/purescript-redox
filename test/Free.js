@@ -5,3 +5,15 @@ exports.unsafeLog = function(a) {
     console.log(a)
   }
 }
+
+var counter = 0
+exports.getCounter = function() {
+  return counter
+}
+
+exports.setCounter = function(c) {
+  return function() {
+    counter = c
+    return {}
+  }
+}

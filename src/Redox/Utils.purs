@@ -1,7 +1,8 @@
 module Redox.Utils 
-  ( hoistCofree'
+  ( addLogger
+  , hoistCofree'
   , mkIncInterp
-  , addLogger
+  , runSubscriptions
   ) where
 
 import Prelude
@@ -12,6 +13,7 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Now (NOW, now)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Data.DateTime.Instant (Instant)
+import Data.Traversable (sequence)
 import Redox.Store (Store)
 import Redox.Store as O
 
@@ -32,7 +34,8 @@ hoistCofree' nat cf = head cf :< nat (hoistCofree' nat <$> tail cf)
 
 -- | Make interpreter which updates the store on every step of computation.
 -- | You have to supply the store and interperter of type `Cofree f state`.
--- | Check out tests how you can use it.
+-- | Check out tests how you can use it.  Note that it does not run
+-- | subscriptions.  Use `runSubscriptions` for that.
 mkIncInterp
   :: forall state f
    . (Functor f)
@@ -41,13 +44,33 @@ mkIncInterp
   -> Cofree f state
 mkIncInterp store interp = hoistCofree' nat interp
   where
-    nat
-      :: f (Cofree f state)
-      -> f (Cofree f state)
+    nat :: f (Cofree f state) -> f (Cofree f state)
     nat fa = g <$> fa
 
     g :: Cofree f state -> Cofree f state
-    g cof = O.performRedoxEff $ cof <$ O.setState store (head cof)
+    g cof = O.performRedoxEff do
+      cof <$ O.setState store (head cof)
+
+-- | Run subscriptions on each leaf of the `Cofree` interpreter.  You'll likely
+-- | want to use `mkIncInterp` first so that the subscriptions run on the updated
+-- | state.
+runSubscriptions
+  :: forall state f
+   . (Functor f)
+  => Store state
+  -> Cofree f state
+  -> Cofree f state
+runSubscriptions store interp = hoistCofree' nat interp
+  where
+    nat :: f (Cofree f state) -> f (Cofree f state)
+    nat fa = g <$> fa
+
+    g :: Cofree f state -> Cofree f state
+    g cof = O.performRedoxEff do
+      st <- O.getState store
+      subs <- O.getSubscriptions store
+      _ <- sequence ((_ $ st) <$> subs)
+      pure cof
 
 foreign import logValues :: forall a e. Array a -> Eff (console :: CONSOLE | e) Unit
 
