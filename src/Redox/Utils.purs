@@ -17,9 +17,8 @@ import Data.Traversable (sequence)
 import Redox.Store (Store)
 import Redox.Store as O
 
--- | A version of `hoistCofree`, where `nat` does not need to come from natural
--- | transformation.
--- | This corresponds to
+-- | A version of `hoistCofree`, where `nat` does not need to come from
+-- | a natural transformation.  This corresponds to
 -- | [applyMiddleware](https://github.com/reactjs/redux/blob/master/src/applyMiddleware.js) 
 -- | in the [redux](https://github.com/reactjs/redux) library.
 -- | You can use this function to add effects to your interpreter, like

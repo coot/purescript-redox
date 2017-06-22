@@ -26,7 +26,6 @@ module Redox.Store
 import Prelude
 import Control.Monad.Eff (kind Effect, Eff)
 import Control.Monad.Eff.Unsafe (unsafeCoerceEff, unsafePerformEff)
-import Data.Generic (class Generic, gCompare, gEq)
 import Data.Newtype (class Newtype, wrap, unwrap)
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -66,13 +65,9 @@ newtype SubscriptionId = SubscriptionId Int
 
 derive instance newtypeSubsctiptionId :: Newtype SubscriptionId _
 
-derive instance genericSubscriptionId :: Generic SubscriptionId
+derive instance eqSubScriptionId :: Eq SubscriptionId
 
-instance eqSubscriptionId :: Eq SubscriptionId where
-  eq = gEq
-
-instance ordSubscriptionId :: Ord SubscriptionId where
-  compare = gCompare
+derive instance ordSubscriptionId :: Ord SubscriptionId
 
 foreign import _subscribe
   :: forall state e eff eff'
@@ -90,23 +85,37 @@ subscribe
   -> Eff (redox :: RedoxStore (subscribe :: SubscribeRedox | e) | eff) SubscriptionId
 subscribe store fn = wrap <$> _subscribe store fn
 
-foreign import _unsubscribe :: forall state e eff. Store state -> Int -> Eff (redox :: RedoxStore (subscribe :: SubscribeRedox | e) | eff) Unit
+foreign import _unsubscribe
+  :: forall state e eff. Store state
+  -> Int
+  -> Eff (redox :: RedoxStore (subscribe :: SubscribeRedox | e) | eff) Unit
 
 -- | Remove a subscription with a given id.
 unsubscribe :: forall state e eff. Store state -> SubscriptionId -> Eff (redox :: RedoxStore (subscribe :: SubscribeRedox | e) | eff) Unit
 unsubscribe store sid = _unsubscribe store $ unwrap sid
 
-foreign import mapStore :: forall state state' e eff. (state -> state') -> Store state -> Eff (redox :: RedoxStore (read :: ReadRedox, write :: WriteRedox | e) | eff) (Store state')
+foreign import mapStore
+  :: forall state state' e eff
+   . (state -> state')
+  -> Store state
+  -> Eff (redox :: RedoxStore (read :: ReadRedox, write :: WriteRedox | e) | eff) (Store state')
 
-foreign import setState :: forall state e eff. Store state -> state -> Eff (redox :: RedoxStore (write :: WriteRedox | e) | eff) (Store state)
+foreign import setState
+  :: forall state e eff
+   . Store state
+  -> state
+  -> Eff (redox :: RedoxStore (write :: WriteRedox | e) | eff) (Store state)
 
-foreign import getState :: forall state e eff. Store state -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) state
+foreign import getState
+  :: forall state e eff
+   . Store state
+  -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) state
 
 -- | Get subscriptions.
 foreign import getSubscriptions
   :: forall state e eff
    . Store state
-   -> Eff
+  -> Eff
       (redox :: RedoxStore (read :: ReadRedox | e) | eff)
       (Array (state -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) Unit))
 

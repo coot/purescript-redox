@@ -27,7 +27,7 @@ then you have to find a functor `RunC eff` which pairs with `C`:
 ```purescript
 pair :: forall eff x y. C (x -> y) -> RunC eff x -> Aff eff y
 ```
-You can deduce from `pair` type that if `C` is a sum type then `RunC` is
+You can deduce from `pair`'s type that if `C` is a sum type then `RunC` is
 a product - that's how it interprets `C`.
 
 Then the interpreter has type:
@@ -76,7 +76,8 @@ Redox.Utils.mkIncInterp
   -> Cofree f state
 ```
 Note that this function will not dispatch subscriptions.  If you build that
-into your interpreterer or you can use `dispatchP` which does not run subscriptions.
+into your interpreterer or you can use `dispatchP` which does not run
+subscriptions (the `P` suffix stands for pure).
 ```purescript
 Redox.DSL.dispatchP
   :: forall state dsl eff
@@ -86,7 +87,6 @@ Redox.DSL.dispatchP
   -> dsl
   -> Eff (redox :: REDOX | eff) (Canceler (redox :: REDOX | eff))
 ```
-which will not touch the store, (the `P` suffix stands for pure).
 
 ## Store middlewares via hoisting Cofree
 You can modify your interpreter using
@@ -99,7 +99,7 @@ Redox.Utils.hoistCofree'
   -> Cofree f state
 ```
 
-This is a version of `Control.Comonad.Cofree.hostCofree` but here the first
+This is a version of `Control.Comonad.Cofree.hoistCofree` but here the first
 argument does not need to be a natural transformation.  This let you add
 effects to the interpreter.  For example `mkIncInterp` is build using it.
 Another example is to add a logger.
