@@ -76,8 +76,14 @@ foreign import logValues :: forall a e. Array a -> Eff (console :: CONSOLE | e) 
 
 foreign import formatInstant :: Instant -> String
 
--- | Add logger to the interpreter which logs updates version of store on each
--- | update.
+-- | Add logger to the interpreter which logs updates on each
+-- | leaf. 
+-- |
+-- | Note that leaves of the cofree interpreter might be visited more often
+-- | than when subsciptions run.  If you are using `dispatch` without
+-- | `mkIncInterp` or `runSubscriptions` the store will be updated only when
+-- | leaves of `Free` DSL are reached, while this logger will log on
+-- | every leaf of your cofree interpreter.
 addLogger
   :: forall state f
    . Functor f
