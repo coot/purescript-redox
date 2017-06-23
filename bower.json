@@ -30,8 +30,8 @@
     "purescript-test-unit": "^11.0.0",
     "purescript-debug": "^3.0.0"
   },
-  "resolutions": {
-    "purescript-lists": "^4.0.1",
-    "purescript-free": "^4.0.0"
-  }
+  "ignore": [
+    "test",
+    "examples"
+  ]
 }
