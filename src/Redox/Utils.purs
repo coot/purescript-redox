@@ -1,5 +1,6 @@
 module Redox.Utils 
   ( addLogger
+  , addLogger'
   , hoistCofree'
   , mkIncInterp
   , runSubscriptions
@@ -10,10 +11,22 @@ import Prelude
 import Control.Comonad.Cofree (Cofree, head, tail, (:<))
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
-import Control.Monad.Eff.Now (NOW, now)
+import Control.Monad.Eff.Now (NOW)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
-import Data.DateTime.Instant (Instant)
+import Control.Monad.Except (runExcept)
+import DOM (DOM)
+import DOM.HTML (window)
+import DOM.HTML.Types (Window)
+import Data.Either (Either(..))
+import Data.Foldable (intercalate)
+import Data.Foreign (MultipleErrors, renderForeignError)
+import Data.Int (fromNumber)
+import Data.Intl.DateTimeFormat (DateTimeFormat, DateTimeFormatOptions(..), HourMinuteSecond(..), LocalesOption, NumericRep(..), DateTimeFormatOptions', createDateTimeFormat, formatJSDate)
+import Data.JSDate (JSDate, LOCALE, getUTCMilliseconds)
+import Data.Maybe (Maybe(Nothing), maybe)
+import Data.Symbol (SProxy(..))
 import Data.Traversable (sequence)
+import Data.Variant (inj)
 import Redox.Store (Store)
 import Redox.Store as O
 
@@ -73,7 +86,9 @@ runSubscriptions store interp = hoistCofree' nat interp
 
 foreign import logValues :: forall a e. Array a -> Eff (console :: CONSOLE | e) Unit
 
-foreign import formatInstant :: Instant -> String
+foreign import nowJSDate :: forall e. Eff (now :: NOW | e) JSDate
+
+foreign import getLocale :: forall e. Window -> Eff (locale :: LOCALE | e) String
 
 -- | Add logger to the interpreter which logs updates on each
 -- | leaf. 
@@ -86,18 +101,52 @@ foreign import formatInstant :: Instant -> String
 addLogger
   :: forall state f
    . Functor f
-  => (state -> String)
+  => String
+  -> (state -> String)
   -> Cofree f state
   -> Cofree f state
-addLogger toString = hoistCofree' (map nat)
+addLogger locale toString = hoistCofree' (map nat)
   where
     nat :: Cofree f state -> Cofree f state
     nat cof = 
       let state = head cof
       in performEff do
-        n <- now 
-        logValues ["redox", formatInstant n, toString state]
+        d <- nowJSDate
+        logValues ["redox", format d, toString state]
         pure cof
 
     performEff :: forall a. Eff (console :: CONSOLE, now :: NOW) a -> a
     performEff = unsafePerformEff
+
+    l :: LocalesOption
+    l = inj (SProxy :: SProxy "locale") locale
+
+    opt :: DateTimeFormatOptions'
+    opt = (DateTimeFormatOptions
+      { localeMatcher: Nothing
+      , timeZone: Nothing
+      , hour12: Nothing
+      , formatMatcher: Nothing
+      }
+      (inj (SProxy :: SProxy "hourMinuteSecond")
+            (HourMinuteSecond {hour: TwoDigit, minute: TwoDigit, second: TwoDigit}))
+    )
+
+    fmt :: Either MultipleErrors DateTimeFormat
+    fmt = runExcept $ createDateTimeFormat l opt
+
+    format :: JSDate -> String
+    format d =
+      case fmt of
+        Left errs -> intercalate "; " (renderForeignError <$> errs)
+        Right fmt' -> (formatJSDate fmt' d) <> (maybe "" (("." <> _) <<< show) (fromNumber (getUTCMilliseconds d)))
+
+addLogger'
+  :: forall state f e
+   . Functor f
+  => (state -> String)
+  -> Cofree f state
+  -> Eff (locale :: LOCALE, dom :: DOM | e) (Cofree f state)
+addLogger' toString cof = do
+  l <- window >>= getLocale
+  pure $ addLogger l toString cof

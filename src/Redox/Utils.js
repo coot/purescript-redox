@@ -6,7 +6,12 @@ exports.logValues = function(values) {
   }
 }
 
-exports.formatInstant = function(i) {
-  var d = new Date(i)
-  return d.getHours() + ":" + d.getMinutes() + ":" + d.getSeconds() + "." + d.getMilliseconds()
+exports.nowJSDate = function() {
+  return new Date()
+}
+
+exports.getLocale = function(window) {
+  return function() {
+    return window.navigator.language
+  }
 }
