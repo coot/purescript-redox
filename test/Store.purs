@@ -2,18 +2,19 @@ module Test.Store
   (testSuite)
   where
 
-import Prelude (Unit, add, bind, const, discard, map, pure, show, unit, ($), (<<<), (<>), (==), (>>=))
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Data.Array as A
 import Data.Maybe (Maybe(..))
+import Prelude (Unit, add, bind, const, discard, pure, show, unit, ($), (<>), (==), (>>=))
+import Redox (WriteRedox, modifyStore)
 import Redox.Store (CreateRedox, ReadRedox, RedoxStore, SubscribeRedox, getState, getSubscriptions, mkStore, subscribe, unsubscribe)
 import Test.Unit (TestSuite, failure, suite, test)
 import Test.Unit.Assert (assert)
 
 foreign import eqFns :: forall a eff. (a -> Eff eff Unit) -> (a -> Eff eff Unit) -> Boolean
 
-testSuite :: forall e eff. TestSuite (redox :: RedoxStore (create :: CreateRedox, read :: ReadRedox, subscribe :: SubscribeRedox | e) | eff)
+testSuite :: forall e eff. TestSuite (redox :: RedoxStore (create :: CreateRedox, read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox | e) | eff)
 testSuite = do
 
   suite "Store" do
@@ -31,7 +32,7 @@ testSuite = do
     suite "Functor Store" do
 
       test "should map over Store" $ do
-        state <- liftEff $ mkStore 0 >>= (pure <<< map (add 1)) >>= getState
+        state <- liftEff $ mkStore 0 >>= (modifyStore (add 1)) >>= getState
         assert ("store did not update its state " <> show state) (state == 1)
 
     suite "subscriptions" do

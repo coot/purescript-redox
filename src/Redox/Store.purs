@@ -14,7 +14,7 @@ module Redox.Store
   , SubscriptionId(..)
   , getState
   , getSubscriptions
-  , mapStore
+  , modifyStore
   , mkStore
   , mkStoreG
   , performRedoxEff
@@ -94,7 +94,7 @@ foreign import _unsubscribe
 unsubscribe :: forall state e eff. Store state -> SubscriptionId -> Eff (redox :: RedoxStore (subscribe :: SubscribeRedox | e) | eff) Unit
 unsubscribe store sid = _unsubscribe store $ unwrap sid
 
-foreign import mapStore
+foreign import modifyStore
   :: forall state state' e eff
    . (state -> state')
   -> Store state
@@ -118,9 +118,6 @@ foreign import getSubscriptions
   -> Eff
       (redox :: RedoxStore (read :: ReadRedox | e) | eff)
       (Array (state -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) Unit))
-
-instance functorStore :: Functor Store where
-  map fn store = unsafePerformEff $ mapStore fn store
 
 performRedoxEff :: forall a e. Eff (redox :: RedoxStore e) a -> a
 performRedoxEff = unsafeCoerce unsafePerformEff

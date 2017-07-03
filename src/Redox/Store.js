@@ -63,7 +63,7 @@ exports._unsubscribe = function(store) {
   }
 }
 
-exports.mapStore = function(fn) {
+exports.modifyStore = function(fn) {
   return function(store) {
     return function() {
       store.state = fn(store.state)

@@ -6,13 +6,14 @@ module Redox.Free
   ) where
 
 import Prelude
-import Redox.Store as O
+
 import Control.Monad.Aff (Aff, Canceler, runAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (Error)
 import Control.Monad.Free (Free)
 import Data.Foldable (sequence_)
-import Redox.Store (ReadRedox, RedoxStore, Store)
+import Redox.Store (ReadRedox, WriteRedox, RedoxStore, Store, setState)
+import Redox.Store as O
 
 type Interp dsl state eff = Free dsl (state -> state) -> state -> Aff eff state
 
@@ -38,16 +39,18 @@ _dispatch errFn succFn interp store cmds =
 -- | your DSL.
 dispatch
   :: forall state dsl eff e
-   . (Error -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) Unit)
-  -> Interp dsl state (redox :: RedoxStore (read :: ReadRedox | e) | eff)
+   . (Error -> Eff (redox :: RedoxStore (read :: ReadRedox, write :: WriteRedox | e) | eff) Unit)
+   -> Interp dsl state (redox :: RedoxStore (read :: ReadRedox, write :: WriteRedox | e) | eff)
   -> Store state
   -> Free dsl (state -> state)
-  -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) (Canceler (redox :: RedoxStore (read :: ReadRedox | e) | eff))
+  -> Eff
+      (redox :: RedoxStore (read :: ReadRedox, write :: WriteRedox | e) | eff)
+      (Canceler (redox :: RedoxStore (read :: ReadRedox, write :: WriteRedox | e) | eff))
 dispatch errFn interp store cmds = _dispatch errFn succFn (\dsl -> interp dsl) store cmds
   where
     succFn state = do
       -- update store state
-      _ <- pure $ (const state) <$> store
+      _ <- setState store state
       -- run subscriptions
       subs <- O.getSubscriptions store
       sequence_ ((_ $ state) <$> subs)
