@@ -2,14 +2,20 @@
 
 function Store(state) {
   this.state = state
+  this.lastSubscriptionId = 0
   this.subscriptions = []
 }
 Store.prototype.subscribe = function(fn) {
-  this.subscriptions.push(fn)
-  return this.subscriptions.length - 1
+  this.subscriptions.push({
+    subscription: fn,
+    subscriptionId: ++this.lastSubscriptionId
+  })
+  return this.lastSubscriptionId
 }
-Store.prototype.unsubscribe = function(idx) {
-  this.subscriptions.splice(idx, 1)
+Store.prototype.unsubscribe = function(subscriptionId) {
+  this.subscriptions = this.subscriptions.filter(function(sub) {
+    return sub.subscriptionId !== subscriptionId
+  })
   return {}
 }
 
@@ -36,7 +42,7 @@ exports.setState = function(store) {
 
 exports.getSubscriptions = function(store) {
   return function() {
-    return store.subscriptions
+    return store.subscriptions.map(function(s) {return s.subscription})
   }
 }
 
@@ -49,9 +55,9 @@ exports._subscribe = function(store) {
 }
 
 exports._unsubscribe = function(store) {
-  return function(idx) {
+  return function(subscriptionId) {
     return function() {
-      store.unsubscribe(idx)
+      store.unsubscribe(subscriptionId)
       return {}
     }
   }
