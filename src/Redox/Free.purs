@@ -40,7 +40,7 @@ _dispatch errFn succFn interp store cmds =
 dispatch
   :: forall state dsl eff e
    . (Error -> Eff (redox :: RedoxStore (read :: ReadRedox, write :: WriteRedox | e) | eff) Unit)
-   -> Interp dsl state (redox :: RedoxStore (read :: ReadRedox, write :: WriteRedox | e) | eff)
+  -> Interp dsl state (redox :: RedoxStore (read :: ReadRedox, write :: WriteRedox | e) | eff)
   -> Store state
   -> Free dsl (state -> state)
   -> Eff
