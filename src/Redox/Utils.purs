@@ -5,15 +5,16 @@ module Redox.Utils
   , runSubscriptions
   ) where
 
-import Prelude
-
-import Control.Comonad.Cofree (Cofree, head, tail, (:<))
+import Control.Comonad.Cofree (Cofree, head, mkCofree, tail, (:<))
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Now (NOW, now)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Data.DateTime.Instant (Instant)
+import Data.Functor.Product (Product, product)
 import Data.Traversable (sequence)
+import Data.Tuple (Tuple(..), uncurry)
+import Prelude (class Functor, Unit, bind, discard, flip, map, pure, ($), (<$), (<$>))
 import Redox.Store (Store)
 import Redox.Store as O
 
@@ -101,3 +102,20 @@ addLogger toString = hoistCofree' (map nat)
 
     performEff :: forall a. Eff (console :: CONSOLE, now :: NOW) a -> a
     performEff = unsafePerformEff
+
+-- | Compose two interpreters. Check out an
+-- | [example](http://try.purescript.org/?gist=b31f48d16ad43cec8c0afcd470ac5add)
+compose
+  :: forall f g a b
+   . Functor f
+  => Functor g
+  => Cofree f a
+  -> Cofree g b
+  -> Cofree (Product f g) (Tuple a b)
+compose f g =
+  mkCofree
+    (Tuple (head f) (head g))
+    (fn (tail f) (tail g))
+  where
+    fn :: f (Cofree f a) -> g (Cofree g b) -> Product f g (Cofree (Product f g) (Tuple a b))
+    fn fa gb = uncurry compose <$> (product (flip Tuple g <$> fa) (Tuple f <$> gb))
