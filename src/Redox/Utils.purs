@@ -6,22 +6,17 @@ module Redox.Utils
   ) where
 
 import Control.Comonad.Cofree (Cofree, head, mkCofree, tail, (:<))
-import Control.Monad.Aff (Aff)
-import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Now (NOW, now)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
 import Data.DateTime.Instant (Instant)
 import Data.Functor.Product (Product, product)
-import Data.StrMap as SM
 import Data.Traversable (sequence)
 import Data.Tuple (Tuple(..), uncurry)
-import Prelude (class Functor, Unit, bind, discard, flip, map, pure, ($), (*>), (<$), (<$>))
+import Prelude (class Functor, Unit, bind, discard, flip, map, pure, ($), (<$), (<$>))
 import Redox.Store (Store)
 import Redox.Store as O
-import Type.Row (class ListToRow, class RowToList, Cons, Nil, kind RowList)
-import Unsafe.Coerce (unsafeCoerce)
 
 -- | A version of `hoistCofree`, where `nat` does not need to come from
 -- | a natural transformation.  This corresponds to
@@ -107,39 +102,6 @@ addLogger toString = hoistCofree' (map nat)
 
     performEff :: forall a. Eff (console :: CONSOLE, now :: NOW) a -> a
     performEff = unsafePerformEff
-
-class LogActionRecord (i :: # Type) (o :: # Type)
-
-instance logActionRecord
-  :: ( RowToList i li
-     , RowToList o lo
-     , LogActionList li lo
-     , ListToRow li i
-     , ListToRow lo i
-     )
-  => LogActionRecord i o
-
-class LogActionList (li :: RowList) (lo :: RowList)
-
-instance logActionListNil :: LogActionList Nil Nil
-
-instance logActionListCons
-  :: LogActionList ti to
-  => LogActionList (Cons k (Aff e a) ti) (Cons k (Aff e a) to)
-
-logAction
-  :: forall r r'
-   . LogActionRecord r r'
-  => Record r
-  -> Record r'
-logAction r = unsafeCoerce s'
-  where
-    s :: forall e1. SM.StrMap (Aff e1 Unit)
-    s = unsafeCoerce r
-
-    s' :: forall e2. SM.StrMap (Aff (console :: CONSOLE | e2) Unit)
-    s' = SM.mapWithKey (\k m -> log k *> m) s
-
 
 -- | Compose two interpreters. Check out an
 -- | [example](http://try.purescript.org/?gist=b31f48d16ad43cec8c0afcd470ac5add)
