@@ -9,10 +9,8 @@
     "url": "git://github.com/coot/purescript-redox.git"
   },
   "ignore": [
-    "**/.*",
-    "node_modules",
-    "bower_components",
-    "output"
+    "test",
+    "examples"
   ],
   "dependencies": {
     "purescript-prelude": "^3.0.0",
@@ -23,15 +21,12 @@
     "purescript-aff": "^3.0.0",
     "purescript-now": "^3.0.0",
     "purescript-js-date": "^5.0.0",
-    "purescript-var": "^2.0.0"
+    "purescript-var": "^2.0.0",
+    "purescript-typelevel-prelude": "^2.3.1"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0",
     "purescript-test-unit": "^11.0.0",
     "purescript-debug": "^3.0.0"
-  },
-  "ignore": [
-    "test",
-    "examples"
-  ]
+  }
 }
