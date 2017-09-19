@@ -15,19 +15,14 @@
   "dependencies": {
     "purescript-prelude": "^3.0.0",
     "purescript-console": "^3.0.0",
-    "purescript-freet": "^3.0.0",
     "purescript-free": "^4.0.0",
-    "purescript-refs": "^3.0.0",
-    "purescript-aff": "^3.0.0",
+    "purescript-aff": "^4.0.0",
     "purescript-now": "^3.0.0",
-    "purescript-js-date": "^5.0.0",
-    "purescript-var": "^2.0.0",
-    "purescript-typelevel-prelude": "^2.3.1",
-    "purescript-maps": "^3.4.0"
+    "purescript-typelevel-prelude": "^2.3.1"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0",
-    "purescript-test-unit": "^12.0.0",
+    "purescript-test-unit": "^13.0.0",
     "purescript-debug": "^3.0.0"
   }
 }
