@@ -126,7 +126,6 @@ counter = makeVar getCounter setCounter
 
 testSuite :: forall eff. TestSuite (redox :: RedoxStore (create :: CreateRedox, read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox), count :: COUNT | eff)
 testSuite =
-
   suite "DSL" do
 
     test "update store asynchronously" $ do
@@ -136,11 +135,11 @@ testSuite =
         runInterp
         store
         cmds1
-      state <- liftEff $ getState store
+      state <- getState store
       assert "store updated synchronously" (state == 0)
 
     test "update store" $ do
-      store <- liftEff $ mkStore 0
+      store <- mkStore 0
       _ <- liftEff $ dispatch
         (\_ -> pure unit)
         runInterp
@@ -148,21 +147,21 @@ testSuite =
         cmds1
       state <- do
         delay $ Milliseconds 10.0
-        liftEff $ getState store
+        getState store
       assert ("store failed to update: " <> show state) (state == 5)
 
     test "run sync commands" $ do
-      store <- liftEff $ mkStore 0
+      store <- mkStore 0
       _ <- liftEff $ dispatch
         (\_ -> pure unit)
         runInterp
         store
         cmds2
-      state <- liftEff $ getState store
+      state <- getState store
       assert ("store should update " <> show state) (state == 5)
 
     test "incremental interpreter" $ do
-      store <- liftEff $ mkStore 0
+      store <- mkStore 0
       _ <- liftEff $ dispatchP
         (\_ -> pure unit)
         (runIncInterp store)
@@ -172,21 +171,21 @@ testSuite =
           increment 1
           increment 1
           pure id
-      state1 <- liftEff $ getState store
-      assert ("store should update " <> show state1) (state1 == 1)
+      state1 <- getState store
+      assert ("store should update " <> show state1 <> " expected 1") (state1 == 1)
       state2 <- do
         delay $ Milliseconds 0.0
-        liftEff $ getState store
+        getState store
       assert ("store should increment " <> show state2 <> " expected 2") (state2 == 2)
       state3 <- do
         delay $ Milliseconds 0.0
-        liftEff $ getState store
+        getState store
       assert ("store should increment " <> show state3 <> " expected 3") (state3 == 3)
 
     test "runSubscriptions" $ do
       liftEff $ set counter 0
-      store <- liftEff $ mkStore 0
-      _ <- liftEff $ subscribe store
+      store <- mkStore 0
+      _ <- subscribe store
         (\_ -> do
           c <- get counter
           set counter (c + 1)
@@ -200,6 +199,6 @@ testSuite =
           incrementSync 1
           incrementSync 1
           pure id
-      state <- liftEff $ getState store
+      state <- getState store
       c <- liftEff $ get counter
       assert ("counter: got: " <> show c <> " expected: 2") $ c == 2

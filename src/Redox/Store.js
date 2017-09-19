@@ -19,55 +19,32 @@ Store.prototype.unsubscribe = function(subscriptionId) {
   return {}
 }
 
-exports.mkStore = function mkStore(state) {
-  return function() {
-    return new Store(state)
-  }
+exports.mkStoreImpl = function mkStore(state) {
+  return new Store(state)
 }
 
-exports.getState = function(store) {
-  return function() {
-    return store.state
-  }
+exports.getStateImpl = function(store) {
+  return store.state
 }
 
-exports.setState = function(store) {
-  return function(state) {
-    return function() {
-      store.state = state
-      return store
-    }
-  }
+exports.setStateImpl = function(store, state) {
+  store.state = state
+  return store
 }
 
-exports.getSubscriptions = function(store) {
-  return function() {
-    return store.subscriptions.map(function(s) {return s.subscription})
-  }
+exports.getSubscriptionsImpl = function(store) {
+  return store.subscriptions.map(function(s) {return s.subscription})
 }
 
-exports._subscribe = function(store) {
-  return function(fn) {
-    return function() {
-      return store.subscribe(fn)
-    }
-  }
+exports.subscribeImpl = function(store, fn) {
+  return store.subscribe(fn)
 }
 
-exports._unsubscribe = function(store) {
-  return function(subscriptionId) {
-    return function() {
-      store.unsubscribe(subscriptionId)
-      return {}
-    }
-  }
+exports.unsubscribeImpl = function(store, subscriptionId) {
+  store.unsubscribe(subscriptionId)
 }
 
-exports.modifyStore = function(fn) {
-  return function(store) {
-    return function() {
-      store.state = fn(store.state)
-      return store
-    }
-  }
+exports.modifyStoreImpl = function(fn, store) {
+  store.state = fn(store.state)
+  return store
 }
