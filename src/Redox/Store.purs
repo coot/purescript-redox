@@ -170,6 +170,16 @@ getSubscriptions
   -> m (Array (state -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) Unit))
 getSubscriptions s = liftEff $ runEffFn1 getSubscriptionsImpl s
 
+runStoreSubscriptions
+  :: forall m state e eff
+   . MonadEff (redox :: RedoxStore (read :: ReadRedox | e) | eff) m
+  => Store state
+  -> m Unit
+runStoreSubscriptions s = do
+  subs <- getSubscriptions s
+  state <- getState s
+  liftEff $ traverse_ (_ $ state) subs
+
 performRedoxEff :: forall a e. Eff (redox :: RedoxStore e) a -> a
 performRedoxEff = unsafeCoerce unsafePerformEff
 
