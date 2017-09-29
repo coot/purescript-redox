@@ -2,12 +2,14 @@ module TodoMVC.Store where
 
 import Control.Comonad.Cofree (Cofree, exploreM, unfoldCofree)
 import Control.Monad.Aff (Aff)
-import Data.Array (snoc, filter)
+import Control.Monad.Eff (Eff)
 import Data.Foldable (all, foldl)
-import Data.Newtype (unwrap, over)
-import Prelude (class Functor, id, map, max, not, pure, ($), (<$>), (+), (/=), (<<<), (==))
-import Redox (Store, mkStoreG)
-import TodoMVC.Action (Action(..), ActionDSL)
+import Data.List (List(..), filter, snoc, (:))
+import Data.Newtype (over, un)
+import Prelude (class Functor, bind, id, map, max, not, otherwise, pure, ($), (+), (/=), (<$>), (<<<), (==), (>>=), (>>>))
+import Redox (Store, getState)
+import Redox.Store (ReadRedox, RedoxStore)
+import TodoMVC.Action (Action(ClearCompleted, CompleteAll, CompleteTodo, EditTodo, DeleteTodo, AddTodo), ActionDSL)
 import TodoMVC.Types (Todo(..), State)
 
 newtype Run eff a = Run
@@ -22,54 +24,75 @@ newtype Run eff a = Run
 derive instance functorRun :: Functor (Run eff)
 
 initialState :: State
-initialState = [
-  Todo
+initialState =
+  (Todo
     {
       text: "Use Redox",
       completed: false,
       id: 0
-    }
-]
--- initialState :: State
--- initialState = mapWithIndex (\idx _ -> Todo { text: "todo: " <> show idx, completed: false, id: idx }) (replicate 100 0)
+    })
+  : Nil
 
-store :: Store State
-store = mkStoreG initialState
-
-type Interp eff a = Cofree (Run eff) a
-
-mkInterp :: forall eff. State -> Interp eff State
-mkInterp state = unfoldCofree id next state
+mkInterp
+  :: forall rx e eff
+   . Store State
+  -> Eff
+      ( redox :: RedoxStore (read :: ReadRedox | rx )
+      | e )
+      (Cofree (Run (redox :: RedoxStore (read :: ReadRedox | rx) | eff)) State)
+mkInterp store = getState store >>= unfoldCofree id next >>> pure
   where
-    updateTodoText :: Int -> String -> State -> Todo -> State
-    updateTodoText id text acu td = 
-      if id == (unwrap td).id
-        then snoc acu (over Todo (_ { text = text }) td)
-        else acu
+    addTodo :: String -> Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) State
+    addTodo text = do
+      s <- getState store
+      pure $ snoc s (Todo
+        { text
+        , completed: false
+        , id: (foldl (\a td -> max a $ (un Todo td).id) 0 s) + 1
+        })
 
-    toggleTodo :: Int -> State -> Todo -> State
-    toggleTodo id acu td = 
-      if id == (unwrap td).id
-        then
-          let completed = not (unwrap td).completed
-          in snoc acu $ over Todo (_ { completed = completed }) td
-        else snoc acu td
+    deleteTodo :: Int -> Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) State
+    deleteTodo _id = do
+      s <- getState store
+      pure $ filter ((_id /= _) <<< _.id <<< un Todo) s
 
-    completeAll :: State -> State
-    completeAll state_ =
-      let areAllMarked = all (_.completed <<< unwrap) state_
-      in map (over Todo (_ { completed = not areAllMarked })) state_
+    editTodo :: Int -> String -> Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) State
+    editTodo _id text = do
+      s <- getState store
+      pure $ _editTodo _id text s
 
-    next :: State -> Run eff (State)
+    _editTodo :: Int -> String -> State -> State
+    _editTodo _ _ Nil = Nil
+    _editTodo _id text ((Todo t) : ts)
+      | _id == t.id = Todo (t { text = text }) : ts
+      | otherwise   = Todo t : _editTodo _id text ts
+
+    completeTodo :: Int -> Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) State
+    completeTodo _id = _toggleTodo _id <$> getState store
+
+    _toggleTodo :: Int -> State -> State
+    _toggleTodo _ Nil = Nil
+    _toggleTodo _id ((Todo t) : ts)
+      | _id == t.id = Todo (t { completed = not t.completed }) : ts
+      | otherwise   = Todo t : _toggleTodo _id ts
+
+    completeAll :: Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) State
+    completeAll = do
+      s <- getState store
+      let allMarked = all (_.completed <<< un Todo) s
+      pure $ map (over Todo (_ { completed = not allMarked })) s
+
+    clearCompleted :: Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) State
+    clearCompleted =
+      filter (not <<< _.completed <<< un Todo) <$> getState store
+
     next state_ = Run
-      { addTodo: \text -> pure $ snoc state_ (Todo {text, completed: false, id: (foldl (\a td -> max a $ (unwrap td).id) 0 state_) + 1 })
-      , deleteTodo: \id -> pure $ filter ((id /= _) <<< _.id <<< unwrap) state_
-      , editTodo: \id text -> pure $ foldl (updateTodoText id text) [] state_
-      , completeTodo: \id -> do
-          let newState = foldl (toggleTodo id) [] state_
-          pure newState
-      , completeAll: pure $ completeAll state_
-      , clearCompleted: pure $ filter (not <<< _.completed <<< unwrap) state_
+      { addTodo
+      , deleteTodo
+      , editTodo
+      , completeTodo
+      , completeAll
+      , clearCompleted
       }
 
 pair :: forall x y eff. Action (x -> y) -> Run eff x -> Aff eff y
@@ -80,5 +103,10 @@ pair (CompleteTodo id f) (Run interp) = f <$> interp.completeTodo id
 pair (CompleteAll f) (Run interp) = f <$> interp.completeAll
 pair (ClearCompleted f) (Run interp) = f <$> interp.clearCompleted
 
-runAction :: forall eff. ActionDSL (State -> State) -> State-> Aff eff State
-runAction cmds state = exploreM pair cmds $ mkInterp state
+runAction
+  :: forall eff
+   . Cofree (Run eff) State
+  -> ActionDSL (State -> State)
+  -> State
+  -> Aff eff State
+runAction interp cmds state = exploreM pair cmds interp

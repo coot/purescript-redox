@@ -4,15 +4,16 @@ module TodoMVC.Types
   , Filter(..)
   ) where
 
-import Prelude (class Eq, class Show)
+import Data.List (List)
 import Data.Newtype (class Newtype)
+import Prelude (class Eq, class Show)
 
-type State = Array Todo
+type State = List Todo
 
 newtype Todo = Todo
-  { text :: String
+  { id :: Int
+  , text :: String
   , completed :: Boolean
-  , id :: Int
   }
 
 derive instance newtypeTodo :: Newtype Todo _
