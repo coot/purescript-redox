@@ -9,13 +9,13 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Var (Var, get, makeVar, set)
 import Control.Monad.Free (Free, liftF)
 import Data.Time.Duration (Milliseconds(..))
-import Debug.Trace (traceAnyA)
-import Redox (subscribe)
+import Redox (addLogger, subscribe)
 import Redox.Free (dispatch, dispatchP)
 import Redox.Store (CreateRedox, ReadRedox, RedoxStore, Store, SubscribeRedox, WriteRedox, getState, mkStore)
 import Redox.Utils (mkIncInterp, runSubscriptions)
-import Test.Unit (TestSuite, suite, test, testOnly)
+import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert (assert)
+import Unsafe.Coerce (unsafeCoerce)
 
 foreign import unsafeLog :: forall a e. a -> Eff e Unit
 
@@ -96,7 +96,7 @@ runInterp store cmds state =
 -- | DSL programs.
 runIncInterp :: forall rx eff. Store Int -> DSL (Int -> Int) -> Int -> Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) Int
 runIncInterp store cmds state =
-  exploreM pair cmds $ (mkIncInterp store <<< mkInterp store) state
+  exploreM pair cmds $ (addLogger unsafeCoerce <<< mkIncInterp store <<< mkInterp store) state
 
 -- | `runSubscriptions` run all store subscriptions on each leaf of interpreter
 runIncWithSubsInterp :: forall rx eff. Store Int -> DSL (Int -> Int) -> Int -> Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) Int
@@ -117,6 +117,10 @@ cmds2 = do
   incrementSync (-5)
   pure id
 
+cmds3 :: DSL (Int -> Int)
+cmds3 = do
+  increment 10
+  pure (_ + 1)
 
 -- counter
 foreign import data COUNT :: Effect
@@ -162,6 +166,18 @@ testSuite =
       state <- getState store
       assert ("store should update " <> show state) (state == 5)
 
+    test "non identity" $ do
+      store <- mkStore 0
+      _ <- liftEff $ dispatch
+        (\_ -> pure unit)
+        (runIncInterp store)
+        store
+        cmds3
+      state <- do
+        delay $ Milliseconds 10.0
+        getState store
+      assert ("wrong value "<> show state) (state == 11)
+
     test "incremental interpreter" $ do
       store <- mkStore 0
       _ <- liftEff $ dispatchP
@@ -204,3 +220,4 @@ testSuite =
       state <- getState store
       c <- liftEff $ get counter
       assert ("counter: got: " <> show c <> " expected: 2") $ c == 2
+
