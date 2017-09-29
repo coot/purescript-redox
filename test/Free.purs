@@ -9,11 +9,12 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Var (Var, get, makeVar, set)
 import Control.Monad.Free (Free, liftF)
 import Data.Time.Duration (Milliseconds(..))
+import Debug.Trace (traceAnyA)
 import Redox (subscribe)
 import Redox.Free (dispatch, dispatchP)
-import Redox.Store (Store, getState, mkStore, RedoxStore, ReadRedox, WriteRedox, CreateRedox, SubscribeRedox)
+import Redox.Store (CreateRedox, ReadRedox, RedoxStore, Store, SubscribeRedox, WriteRedox, getState, mkStore)
 import Redox.Utils (mkIncInterp, runSubscriptions)
-import Test.Unit (TestSuite, suite, test)
+import Test.Unit (TestSuite, suite, test, testOnly)
 import Test.Unit.Assert (assert)
 
 foreign import unsafeLog :: forall a e. a -> Eff e Unit
@@ -60,21 +61,22 @@ derive instance functorRun :: Functor (Run eff)
 type Interp eff a = Cofree (Run eff) a
 
 -- | Use `unfoldCofree` to create the interpreter.
-mkInterp :: forall eff. Int -> Interp eff Int
-mkInterp state = unfoldCofree id next state
+mkInterp :: forall rx eff. Store Int -> Int -> Interp (redox :: RedoxStore (read :: ReadRedox | rx) | eff) Int
+mkInterp store state = unfoldCofree id next state
   where
-    next :: Int -> Run eff Int
-    next st = Run { increment: _increment st
-                  , incrementSync: _incrementSync st
+    next :: Int -> Run (redox :: RedoxStore (read :: ReadRedox | rx) | eff) Int
+    next st = Run { increment: _increment
+                  , incrementSync: _incrementSync
                   }
 
-    _increment :: Int -> Int -> Aff eff Int
-    _increment a b = do
+    _increment b = do
+      a <- getState store
       delay $ Milliseconds 0.0
       pure (a + b)
 
-    _incrementSync :: Int -> Int -> Aff eff Int
-    _incrementSync a b = pure (a + b)
+    _incrementSync b = do
+      a <- getState store
+      pure (a + b)
 
 -- | We need to pair the `Command` and `Run`.  This makes `Run` a dual to
 -- | `Command`.  And you can see why `Run` has to have a product type.
@@ -85,21 +87,21 @@ pair (IncrementSync a next) (Run interp) = next <$> (interp.incrementSync a)
 -- | This function will be passed to `Redox.dispatch` to interpret `DSL`
 -- | program. You can use `Redox.dispatch` to run programs with this
 -- | interpreter. It will update the store when a DSL program finishes.
-runInterp :: forall eff. DSL (Int -> Int) -> Int -> Aff eff Int
-runInterp cmds state =
-  exploreM pair cmds $ mkInterp state
+runInterp :: forall rx eff. Store Int -> DSL (Int -> Int) -> Int -> Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) Int
+runInterp store cmds state =
+  exploreM pair cmds $ mkInterp store state
 
 -- | `runIncInterp` is an enhanced version of `runInterp` which updates the
 -- | store on every step of computation. You can use `Redox.dispatchP` to run
 -- | DSL programs.
-runIncInterp :: forall eff. Store Int -> DSL (Int -> Int) -> Int -> Aff eff Int
+runIncInterp :: forall rx eff. Store Int -> DSL (Int -> Int) -> Int -> Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) Int
 runIncInterp store cmds state =
-  exploreM pair cmds $ (mkIncInterp store <<< mkInterp) state
+  exploreM pair cmds $ (mkIncInterp store <<< mkInterp store) state
 
 -- | `runSubscriptions` run all store subscriptions on each leaf of interpreter
-runIncWithSubsInterp :: forall eff. Store Int -> DSL (Int -> Int) -> Int -> Aff eff Int
+runIncWithSubsInterp :: forall rx eff. Store Int -> DSL (Int -> Int) -> Int -> Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) Int
 runIncWithSubsInterp store cmds state =
-  exploreM pair cmds $ (runSubscriptions store <<< mkIncInterp store <<< mkInterp) state
+  exploreM pair cmds $ (runSubscriptions store <<< mkIncInterp store <<< mkInterp store) state
 
 -- | `cmds` is a simple program in our DSL
 cmds1 :: DSL (Int -> Int)
@@ -132,7 +134,7 @@ testSuite =
       store <- liftEff $ mkStore 0
       _ <- liftEff $ dispatch
         (\_ -> pure unit)
-        runInterp
+        (runInterp store)
         store
         cmds1
       state <- getState store
@@ -142,7 +144,7 @@ testSuite =
       store <- mkStore 0
       _ <- liftEff $ dispatch
         (\_ -> pure unit)
-        runInterp
+        (runIncInterp store)
         store
         cmds1
       state <- do
@@ -154,7 +156,7 @@ testSuite =
       store <- mkStore 0
       _ <- liftEff $ dispatch
         (\_ -> pure unit)
-        runInterp
+        (runIncInterp store)
         store
         cmds2
       state <- getState store

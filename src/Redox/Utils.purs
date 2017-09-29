@@ -3,6 +3,7 @@ module Redox.Utils
   , hoistCofree'
   , mkIncInterp
   , runSubscriptions
+  , compose
   ) where
 
 import Control.Comonad.Cofree (Cofree, head, mkCofree, tail, (:<))
