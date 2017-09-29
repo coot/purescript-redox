@@ -36,11 +36,11 @@ type DSL a = Free Command a
 -- | The following set of function lifts `Command` to the `Free` monad.  This
 -- | is gives API from which you can build complex programs using your the DSL.
 -- | See `cmds` and `cmds2` below
-increment :: Int -> DSL Unit
-increment i = liftF (Increment i unit)
+increment :: Int -> DSL (Int -> Int)
+increment i = liftF (Increment i id)
 
-incrementSync :: Int -> DSL Unit
-incrementSync i = liftF (IncrementSync i unit)
+incrementSync :: Int -> DSL (Int -> Int)
+incrementSync i = liftF (IncrementSync i id)
 
 -- | We need an interpreter.  We start with a dual functor: `Command` had
 -- | a sum type, hence `Run` has to be a product.  We use `Aff` since we want
@@ -106,20 +106,18 @@ runIncWithSubsInterp store cmds state =
 -- | `cmds` is a simple program in our DSL
 cmds1 :: DSL (Int -> Int)
 cmds1 = do 
-  increment 10
+  _ <- increment 10
   increment (-5)
-  pure id
 
 -- | another DSL program
 cmds2 :: DSL (Int -> Int)
 cmds2 = do
-  incrementSync 10
+  _ <- incrementSync 10
   incrementSync (-5)
-  pure id
 
 cmds3 :: DSL (Int -> Int)
 cmds3 = do
-  increment 10
+  _ <- increment 10
   pure (_ + 1)
 
 -- counter
@@ -142,7 +140,7 @@ testSuite =
         store
         cmds1
       state <- getState store
-      assert "store updated synchronously" (state == 0)
+      assert "store updated asynchronously" (state == 0)
 
     test "update store" $ do
       store <- mkStore 0
@@ -151,9 +149,8 @@ testSuite =
         (runIncInterp store)
         store
         cmds1
-      state <- do
-        delay $ Milliseconds 10.0
-        getState store
+      delay $ Milliseconds 20.0
+      state <- getState store
       assert ("store failed to update: " <> show state) (state == 5)
 
     test "run sync commands" $ do
@@ -185,10 +182,9 @@ testSuite =
         (runIncInterp store)
         store
         do
-          incrementSync 1
+          _ <- incrementSync 1
+          _ <- increment 1
           increment 1
-          increment 1
-          pure id
       state1 <- getState store
       assert ("store should update " <> show state1 <> " expected 1") (state1 == 1)
       state2 <- do
@@ -214,9 +210,8 @@ testSuite =
         (runIncWithSubsInterp store)
         store
         do
+          _ <- incrementSync 1
           incrementSync 1
-          incrementSync 1
-          pure id
       state <- getState store
       c <- liftEff $ get counter
       assert ("counter: got: " <> show c <> " expected: 2") $ c == 2
