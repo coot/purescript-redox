@@ -9,9 +9,7 @@ module Redox.Utils
 import Control.Comonad.Cofree (Cofree, head, mkCofree, tail, (:<))
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
-import Control.Monad.Eff.Now (NOW, now)
 import Control.Monad.Eff.Unsafe (unsafePerformEff)
-import Data.DateTime.Instant (Instant)
 import Data.Functor.Product (Product, product)
 import Data.Traversable (sequence)
 import Data.Tuple (Tuple(..), uncurry)
@@ -75,8 +73,6 @@ runSubscriptions store interp = hoistCofree' nat interp
 
 foreign import logValues :: forall a e. Array a -> Eff (console :: CONSOLE | e) Unit
 
-foreign import formatInstant :: Instant -> String
-
 -- | Add logger to the interpreter which logs updates on each
 -- | leaf. 
 -- |
@@ -97,11 +93,10 @@ addLogger toString = hoistCofree' (map nat)
     nat cof = 
       let state = head cof
       in performEff do
-        n <- now 
-        logValues ["redox", formatInstant n, toString state]
+        logValues ["redox", toString state]
         pure cof
 
-    performEff :: forall a. Eff (console :: CONSOLE, now :: NOW) a -> a
+    performEff :: forall a. Eff (console :: CONSOLE) a -> a
     performEff = unsafePerformEff
 
 -- | Compose two interpreters. Check out an
