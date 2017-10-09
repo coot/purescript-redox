@@ -1,8 +1,11 @@
 module Redox.Utils 
-  ( addLogger
-  , hoistCofree'
+  ( hoistCofree'
   , mkIncInterp
+  , mkIncInterpNat
   , runSubscriptions
+  , runSubscriptionsNat
+  , addLogger
+  , addLoggerNat
   , compose
   ) where
 
@@ -25,7 +28,7 @@ import Redox.Store as O
 -- | logging, optimistic updates, undo/redo stack, delayed actions... 
 hoistCofree'
   :: forall f state
-   . (Functor f)
+   . Functor f
   => (f (Cofree f state) -> f (Cofree f state))
   -> Cofree f state
   -> Cofree f state
@@ -37,39 +40,55 @@ hoistCofree' nat cf = head cf :< nat (hoistCofree' nat <$> tail cf)
 -- | subscriptions.  Use `runSubscriptions` for that.
 mkIncInterp
   :: forall state f
-   . (Functor f)
+   . Functor f
   => Store state
   -> Cofree f state
   -> Cofree f state
-mkIncInterp store interp = hoistCofree' nat interp
-  where
-    nat :: f (Cofree f state) -> f (Cofree f state)
-    nat fa = g <$> fa
+mkIncInterp store = hoistCofree' (map $ mkIncInterpNat store)
 
-    g :: Cofree f state -> Cofree f state
-    g cof = O.performRedoxEff do
-      cof <$ O.setState store (head cof)
+-- | The `map $ mkIncInterpNat store` is the natural transformation that runs
+-- | `mkIncInterp`.  If you have several middlewares to run using `hoistCofree`
+-- | you can compose them first and run them once.
+mkIncInterpNat
+  :: forall state f
+   . Functor f
+  => Store state
+  -> Cofree f state
+  -> Cofree f state
+mkIncInterpNat store cof =
+  O.performRedoxEff $ cof <$ O.setState store (head cof)
 
 -- | Run subscriptions on each leaf of the `Cofree` interpreter.  You'll likely
 -- | want to use `mkIncInterp` first so that the subscriptions run on the updated
--- | state.
+-- | state, e.g.
+-- | ``` purescript
+-- | runSubscriptions store <<< mkIncInterp store
+-- | ```
+-- | or even better
+-- | ```
+-- | hoistCofree' (map $ runSubscriptionsNat store <<< mkIncInterpNat store)
+-- | ```
 runSubscriptions
   :: forall state f
-   . (Functor f)
+   . Functor f
   => Store state
   -> Cofree f state
   -> Cofree f state
-runSubscriptions store interp = hoistCofree' nat interp
-  where
-    nat :: f (Cofree f state) -> f (Cofree f state)
-    nat fa = g <$> fa
+runSubscriptions store = hoistCofree' (map $ runSubscriptionsNat store)
 
-    g :: Cofree f state -> Cofree f state
-    g cof = O.performRedoxEff do
-      st <- O.getState store
-      subs <- O.getSubscriptions store
-      _ <- sequence ((_ $ st) <$> subs)
-      pure cof
+-- | The `map $ runSubscriptionsNat store` is the natural transformation of `f`
+-- | that runs `runSubscriptions`.
+runSubscriptionsNat
+  :: forall f state
+   . Functor f
+  => Store state
+  -> Cofree f state
+  -> Cofree f state
+runSubscriptionsNat store cof = O.performRedoxEff do
+  st <- O.getState store
+  subs <- O.getSubscriptions store
+  _ <- sequence ((_ $ st) <$> subs)
+  pure cof
 
 foreign import logValues :: forall a e. Array a -> Eff (console :: CONSOLE | e) Unit
 
@@ -87,17 +106,22 @@ addLogger
   => (state -> String)
   -> Cofree f state
   -> Cofree f state
-addLogger toString = hoistCofree' (map nat)
-  where
-    nat :: Cofree f state -> Cofree f state
-    nat cof = 
-      let state = head cof
-      in performEff do
-        logValues ["redox", toString state]
-        pure cof
+addLogger toString = hoistCofree' (map $ addLoggerNat toString)
 
-    performEff :: forall a. Eff (console :: CONSOLE) a -> a
-    performEff = unsafePerformEff
+performConsole :: forall a. Eff (console :: CONSOLE) a -> a
+performConsole = unsafePerformEff
+
+addLoggerNat
+  :: forall f state
+   . Functor f
+  => (state -> String)
+  -> Cofree f state
+  -> Cofree f state
+addLoggerNat toString cof = 
+  let state = head cof
+  in performConsole do
+    logValues ["redox", toString state]
+    pure cof
 
 -- | Compose two interpreters. Check out an
 -- | [example](http://try.purescript.org/?gist=b31f48d16ad43cec8c0afcd470ac5add)
