@@ -47,8 +47,8 @@ mkIncInterp
 mkIncInterp store = hoistCofree' (map $ mkIncInterpNat store)
 
 -- | The `map $ mkIncInterpNat store` is the natural transformation that runs
--- | `mkIncInterp`.  If you have several middlewares to run using `hoistCofree`
--- | you can compose them first and run them once.
+-- | `mkIncInterp`.  If you have several natural transformations to run using
+-- | `hoistCofree` you can compose them first and run them once.
 mkIncInterpNat
   :: forall state f
    . Functor f
