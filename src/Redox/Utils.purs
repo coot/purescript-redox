@@ -4,6 +4,7 @@ module Redox.Utils
   , mkIncInterp
   , runSubscriptions
   , compose
+  , composeS
   ) where
 
 import Control.Comonad.Cofree (Cofree, head, mkCofree, tail, (:<))
@@ -115,3 +116,19 @@ compose f g =
   where
     fn :: f (Cofree f a) -> g (Cofree g b) -> Product f g (Cofree (Product f g) (Tuple a b))
     fn fa gb = uncurry compose <$> (product (flip Tuple g <$> fa) (Tuple f <$> gb))
+
+composeS
+  :: forall f g state
+   . Functor f
+  => Functor g
+  => (state -> state -> state)
+  -> Cofree f state
+  -> Cofree g state
+  -> Cofree (Product f g) state
+composeS cmps f g =
+  mkCofree
+    (head f `cmps` head g)
+    (fn (tail f) (tail g))
+  where
+    fn :: f (Cofree f state) -> g (Cofree g state) -> Product f g (Cofree (Product f g) state)
+    fn fa gb = uncurry (composeS cmps) <$> (product (flip Tuple g <$> fa) (Tuple f <$> gb))
