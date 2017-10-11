@@ -4,7 +4,7 @@ module Redox.Utils
   , mkIncInterp
   , runSubscriptions
   , compose
-  , composeS
+  , composeM
   ) where
 
 import Control.Comonad.Cofree (Cofree, head, mkCofree, tail, (:<))
@@ -102,6 +102,7 @@ addLogger toString = hoistCofree' (map nat)
 
 -- | Compose two interpreters. Check out an
 -- | [example](http://try.purescript.org/?gist=b31f48d16ad43cec8c0afcd470ac5add)
+-- | This a specialization of `composeM`.
 compose
   :: forall f g a b
    . Functor f
@@ -109,26 +110,21 @@ compose
   => Cofree f a
   -> Cofree g b
   -> Cofree (Product f g) (Tuple a b)
-compose f g =
-  mkCofree
-    (Tuple (head f) (head g))
-    (fn (tail f) (tail g))
-  where
-    fn :: f (Cofree f a) -> g (Cofree g b) -> Product f g (Cofree (Product f g) (Tuple a b))
-    fn fa gb = uncurry compose <$> (product (flip Tuple g <$> fa) (Tuple f <$> gb))
+compose = composeM Tuple
 
-composeS
-  :: forall f g state
+-- | Compose two interpreters.
+composeM
+  :: forall f g a b c
    . Functor f
   => Functor g
-  => (state -> state -> state)
-  -> Cofree f state
-  -> Cofree g state
-  -> Cofree (Product f g) state
-composeS cmps f g =
+  => (a -> b -> c)
+  -> Cofree f a
+  -> Cofree g b
+  -> Cofree (Product f g) c
+composeM cmps f g =
   mkCofree
     (head f `cmps` head g)
     (fn (tail f) (tail g))
   where
-    fn :: f (Cofree f state) -> g (Cofree g state) -> Product f g (Cofree (Product f g) state)
-    fn fa gb = uncurry (composeS cmps) <$> (product (flip Tuple g <$> fa) (Tuple f <$> gb))
+    fn :: f (Cofree f a) -> g (Cofree g b) -> Product f g (Cofree (Product f g) c)
+    fn fa gb = uncurry (composeM cmps) <$> (product (flip Tuple g <$> fa) (Tuple f <$> gb))
