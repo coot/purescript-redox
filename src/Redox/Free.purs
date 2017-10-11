@@ -2,7 +2,6 @@ module Redox.Free
   ( _dispatch
   , dispatch
   , dispatchP
-  , Interp
   ) where
 
 import Prelude
@@ -16,12 +15,12 @@ import Data.Traversable (traverse_)
 import Redox.Store (ReadRedox, WriteRedox, RedoxStore, Store, setState)
 import Redox.Store as O
 
-type Interp dsl state eff = Free dsl (state -> state) -> state -> Aff eff state
+type Interpret dsl state eff = Free dsl (state -> state) -> state -> Aff eff state
 
 _dispatch
   :: forall state dsl eff e
    . (Either Error state -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) Unit)
-  -> Interp dsl state (redox :: RedoxStore (read :: ReadRedox | e) | eff)
+  -> Interpret dsl state (redox :: RedoxStore (read :: ReadRedox | e) | eff)
   -> Store state
   -> Free dsl (state -> state)
   -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) (Fiber (redox :: RedoxStore (read :: ReadRedox | e) | eff) Unit)
@@ -40,7 +39,7 @@ _dispatch fn interp store cmds =
 dispatch
   :: forall state dsl eff e
    . (Error -> Eff (redox :: RedoxStore (read :: ReadRedox, write :: WriteRedox | e) | eff) Unit)
-  -> Interp dsl state (redox :: RedoxStore (read :: ReadRedox, write :: WriteRedox | e) | eff)
+  -> Interpret dsl state (redox :: RedoxStore (read :: ReadRedox, write :: WriteRedox | e) | eff)
   -> Store state
   -> Free dsl (state -> state)
   -> Eff
@@ -62,7 +61,7 @@ dispatch errFn interp store cmds = _dispatch (either errFn succFn) (\dsl -> inte
 dispatchP
   :: forall state dsl eff e
    . (Error -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) Unit)
-  -> Interp dsl state (redox :: RedoxStore (read :: ReadRedox | e) | eff)
+  -> Interpret dsl state (redox :: RedoxStore (read :: ReadRedox | e) | eff)
   -> Store state
   -> Free dsl (state -> state)
   -> Eff (redox :: RedoxStore (read :: ReadRedox | e) | eff) (Fiber (redox :: RedoxStore (read :: ReadRedox | e) | eff) Unit)
