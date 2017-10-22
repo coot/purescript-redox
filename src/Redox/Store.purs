@@ -14,6 +14,7 @@ module Redox.Store
   , SubscriptionId(..)
   , getState
   , getSubscriptions
+  , runStoreSubscriptions
   , modifyStore
   , mkStore
   , mkStoreG
