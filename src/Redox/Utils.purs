@@ -56,7 +56,7 @@ mkIncInterpNat
   -> Cofree f state
   -> Cofree f state
 mkIncInterpNat store cof =
-  O.performRedoxEff $ cof <$ O.setState store (head cof)
+  unsafePerformEffect $ cof <$ O.setState store (head cof)
 
 -- | Run subscriptions on each leaf of the `Cofree` interpreter.  You'll likely
 -- | want to use `mkIncInterp` first so that the subscriptions run on the updated
@@ -84,7 +84,7 @@ runSubscriptionsNat
   => Store state
   -> Cofree f state
   -> Cofree f state
-runSubscriptionsNat store cof = O.performRedoxEff do
+runSubscriptionsNat store cof = unsafePerformEffect do
   st <- O.getState store
   subs <- O.getSubscriptions store
   _ <- sequence ((_ $ st) <$> subs)

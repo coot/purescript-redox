@@ -7,47 +7,19 @@ module Redox.Store
   , runStoreSubscriptions
   , modifyStore
   , mkStore
-  -- , mkStoreG
-  , performRedoxEff
+  , mkStoreG
   , setState
   , subscribe
   , unsubscribe
   ) where
 
-import Prelude (class Eq, class Ord, Unit, bind, ($), (<$>))
+import Prelude
 import Data.Newtype (class Newtype, un)
 import Data.Traversable (traverse_)
-import Unsafe.Coerce (unsafeCoerce)
 import Effect (Effect)
 import Effect.Unsafe (unsafePerformEffect)
 import Effect.Uncurried (EffectFn1, EffectFn2, runEffectFn1, runEffectFn2)
 import Effect.Class (class MonadEffect, liftEffect)
-
--- -- | Effect for creating Redox Store
--- foreign import data CreateRedox :: Effect
-
--- -- | Effect for reading state of the store or retreaving store subscribers.
--- foreign import data ReadRedox :: Effect
-
--- -- | Effect for writing to the store
--- foreign import data WriteRedox :: Effect
-
--- -- | Effect for (un)subscribing to the store
--- foreign import data SubscribeRedox :: Effect
-
--- foreign import data RedoxStore :: # Effect -> Effect
-
--- type ReadOnlyRedox = (read :: ReadRedox)
-
--- type WriteOnlyRedox = (write :: WriteRedox)
-
--- type ReadWriteRedox = (read :: ReadRedox, write :: WriteRedox)
-
--- type ReadWriteSubscribeRedox = (read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox)
-
--- type CreateReadWriteSubscribeRedox = (create :: CreateRedox, read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox)
-
--- type REDOX = RedoxStore CreateReadWriteSubscribeRedox
 
 foreign import data Store :: Type -> Type
 
@@ -59,11 +31,7 @@ foreign import mkStoreImpl
       state
       (Store state)
 
-mkStore
-  :: forall m state
-   . MonadEffect m
-  => state
-  -> m (Store state)
+mkStore :: forall m state . MonadEffect m => state -> m (Store state)
 mkStore s = liftEffect $ runEffectFn1 mkStoreImpl s
 
 newtype SubscriptionId = SubscriptionId Int
@@ -74,12 +42,7 @@ derive instance eqSubScriptionId :: Eq SubscriptionId
 
 derive instance ordSubscriptionId :: Ord SubscriptionId
 
-foreign import subscribeImpl
-  :: forall state
-   . EffectFn2
-      (Store state) 
-      (state -> Effect Unit)
-      Int
+foreign import subscribeImpl :: forall state. EffectFn2 (Store state) (state -> Effect Unit) Int
 
 -- | Subscribe to store updates.  Note that store updates are not run by the
 -- | store itself.  That is left to dispatch or the DSL interpreter.
@@ -166,13 +129,9 @@ runStoreSubscriptions s = do
   state <- getState s
   liftEffect $ traverse_ (_ $ state) subs
 
-performRedoxEff :: forall a. Effect a -> a
-performRedoxEff = unsafeCoerce unsafePerformEffect
-
 -- | Make store outside of Eff monad (global).
--- TODO: Doesn't compile because of some missing instance?!
--- mkStoreG :: forall state. state -> Store state
--- mkStoreG = performRedoxEff <<< mkStore'
---   where
---     mkStore' :: state -> Effect (Store state)
---     mkStore' = unsafeCoerce <<< mkStore
+mkStoreG :: forall state. state -> Store state
+mkStoreG = unsafePerformEffect <<< mkStore'
+  where
+    mkStore' :: state -> Effect (Store state)
+    mkStore' = mkStore
