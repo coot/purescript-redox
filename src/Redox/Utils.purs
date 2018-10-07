@@ -11,9 +11,8 @@ module Redox.Utils
   ) where
 
 import Control.Comonad.Cofree (Cofree, head, mkCofree, tail, (:<))
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE)
-import Control.Monad.Eff.Unsafe (unsafePerformEff)
+import Effect (Effect)
+import Effect.Unsafe (unsafePerformEffect)
 import Data.Functor.Product (Product, product)
 import Data.Traversable (sequence)
 import Data.Tuple (Tuple(..), uncurry)
@@ -91,7 +90,7 @@ runSubscriptionsNat store cof = O.performRedoxEff do
   _ <- sequence ((_ $ st) <$> subs)
   pure cof
 
-foreign import logValues :: forall a e. Array a -> Eff (console :: CONSOLE | e) Unit
+foreign import logValues :: forall a. Array a -> Effect Unit
 
 -- | Add logger to the interpreter which logs updates on each
 -- | leaf. 
@@ -109,8 +108,8 @@ addLogger
   -> Cofree f state
 addLogger toString = hoistCofree' (map $ addLoggerNat toString)
 
-performConsole :: forall a. Eff (console :: CONSOLE) a -> a
-performConsole = unsafePerformEff
+performConsole :: forall a. Effect  a -> a
+performConsole = unsafePerformEffect
 
 addLoggerNat
   :: forall f state

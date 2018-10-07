@@ -3,21 +3,20 @@ module Test.Free where
 import Prelude
 
 import Control.Comonad.Cofree (Cofree, exploreM, unfoldCofree)
-import Control.Monad.Aff (Aff, delay)
-import Control.Monad.Eff (Eff, kind Effect)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Var (Var, get, makeVar, set)
+import Effect.Aff (Aff, delay)
+import Effect (Effect)
+import Effect.Class (liftEffect)
 import Control.Monad.Free (Free, liftF)
 import Data.Time.Duration (Milliseconds(..))
 import Redox (addLogger, subscribe)
 import Redox.Free (dispatch, dispatchP)
-import Redox.Store (CreateRedox, ReadRedox, RedoxStore, Store, SubscribeRedox, WriteRedox, getState, mkStore)
+import Redox.Store ( Store, getState, mkStore)
 import Redox.Utils (mkIncInterp, runSubscriptions)
 import Test.Unit (TestSuite, suite, test)
 import Test.Unit.Assert (assert)
 import Unsafe.Coerce (unsafeCoerce)
 
-foreign import unsafeLog :: forall a e. a -> Eff e Unit
+foreign import unsafeLog :: forall a. a -> Effect Unit
 
 -- | DSL commands
 data Command a
@@ -37,20 +36,20 @@ type DSL a = Free Command a
 -- | is gives API from which you can build complex programs using your the DSL.
 -- | See `cmds` and `cmds2` below
 increment :: Int -> DSL (Int -> Int)
-increment i = liftF (Increment i id)
+increment i = liftF (Increment i identity)
 
 incrementSync :: Int -> DSL (Int -> Int)
-incrementSync i = liftF (IncrementSync i id)
+incrementSync i = liftF (IncrementSync i identity)
 
 -- | We need an interpreter.  We start with a dual functor: `Command` had
 -- | a sum type, hence `Run` has to be a product.  We use `Aff` since we want
 -- | to interpret the `DSL` in the `Aff` monad.
-newtype Run eff a = Run
-  { increment :: Int -> Aff eff a
-  , incrementSync :: Int -> Aff eff a
+newtype Run a = Run
+  { increment :: Int -> Aff a
+  , incrementSync :: Int -> Aff a
   }
 
-derive instance functorRun :: Functor (Run eff)
+derive instance functorRun :: Functor Run
 
 -- | Basic interpreter.  We only specify how the state will be updated.
 -- | Cofree can be seen as an annotated tree, where each node holds the
@@ -58,13 +57,13 @@ derive instance functorRun :: Functor (Run eff)
 -- | supplied functor, here `Run`.  `Cofree` is an infinite data structure
 -- | hence it will be able to interpret program of any length (or depth)
 -- | written using the `Free` monad.
-type Interp eff a = Cofree (Run eff) a
+type Interp a = Cofree Run a
 
 -- | Use `unfoldCofree` to create the interpreter.
-mkInterp :: forall rx eff. Store Int -> Int -> Interp (redox :: RedoxStore (read :: ReadRedox | rx) | eff) Int
-mkInterp store state = unfoldCofree id next state
+mkInterp :: Store Int -> Int -> Interp Int
+mkInterp store state = unfoldCofree identity next state
   where
-    next :: Int -> Run (redox :: RedoxStore (read :: ReadRedox | rx) | eff) Int
+    next :: Int -> Run Int
     next st = Run { increment: _increment
                   , incrementSync: _incrementSync
                   }
@@ -80,26 +79,26 @@ mkInterp store state = unfoldCofree id next state
 
 -- | We need to pair the `Command` and `Run`.  This makes `Run` a dual to
 -- | `Command`.  And you can see why `Run` has to have a product type.
-pair :: forall eff x y. Command (x -> y) -> Run eff x -> Aff eff y
+pair :: forall x y. Command (x -> y) -> Run x -> Aff y
 pair (Increment a next) (Run interp) = next <$> (interp.increment a)
 pair (IncrementSync a next) (Run interp) = next <$> (interp.incrementSync a)
 
 -- | This function will be passed to `Redox.dispatch` to interpret `DSL`
 -- | program. You can use `Redox.dispatch` to run programs with this
 -- | interpreter. It will update the store when a DSL program finishes.
-runInterp :: forall rx eff. Store Int -> DSL (Int -> Int) -> Int -> Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) Int
+runInterp :: Store Int -> DSL (Int -> Int) -> Int -> Aff Int
 runInterp store cmds state =
   exploreM pair cmds $ mkInterp store state
 
 -- | `runIncInterp` is an enhanced version of `runInterp` which updates the
 -- | store on every step of computation. You can use `Redox.dispatchP` to run
 -- | DSL programs.
-runIncInterp :: forall rx eff. Store Int -> DSL (Int -> Int) -> Int -> Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) Int
+runIncInterp :: Store Int -> DSL (Int -> Int) -> Int -> Aff Int
 runIncInterp store cmds state =
   exploreM pair cmds $ (addLogger unsafeCoerce <<< mkIncInterp store <<< mkInterp store) state
 
 -- | `runSubscriptions` run all store subscriptions on each leaf of interpreter
-runIncWithSubsInterp :: forall rx eff. Store Int -> DSL (Int -> Int) -> Int -> Aff (redox :: RedoxStore (read :: ReadRedox | rx) | eff) Int
+runIncWithSubsInterp :: Store Int -> DSL (Int -> Int) -> Int -> Aff Int
 runIncWithSubsInterp store cmds state =
   exploreM pair cmds $ (runSubscriptions store <<< mkIncInterp store <<< mkInterp store) state
 
@@ -121,20 +120,16 @@ cmds3 = do
   pure (_ + 1)
 
 -- counter
-foreign import data COUNT :: Effect
-foreign import getCounter :: forall eff. Eff (count :: COUNT | eff) Int
-foreign import setCounter :: forall eff. Int -> Eff (count :: COUNT | eff) Unit
+foreign import getCounter :: Effect Int
+foreign import setCounter :: Int -> Effect Unit
 
-counter :: forall eff. Var (count :: COUNT | eff) Int
-counter = makeVar getCounter setCounter
-
-testSuite :: forall eff. TestSuite (redox :: RedoxStore (create :: CreateRedox, read :: ReadRedox, write :: WriteRedox, subscribe :: SubscribeRedox), count :: COUNT | eff)
+testSuite :: TestSuite 
 testSuite =
   suite "DSL" do
 
     test "update store asynchronously" $ do
-      store <- liftEff $ mkStore 0
-      _ <- liftEff $ dispatch
+      store <- liftEffect $ mkStore 0
+      _ <- liftEffect $ dispatch
         (\_ -> pure unit)
         (runInterp store)
         store
@@ -144,7 +139,7 @@ testSuite =
 
     test "update store" $ do
       store <- mkStore 0
-      _ <- liftEff $ dispatch
+      _ <- liftEffect $ dispatch
         (\_ -> pure unit)
         (runIncInterp store)
         store
@@ -155,7 +150,7 @@ testSuite =
 
     test "run sync commands" $ do
       store <- mkStore 0
-      _ <- liftEff $ dispatch
+      _ <- liftEffect $ dispatch
         (\_ -> pure unit)
         (runIncInterp store)
         store
@@ -165,7 +160,7 @@ testSuite =
 
     test "non identity" $ do
       store <- mkStore 0
-      _ <- liftEff $ dispatch
+      _ <- liftEffect $ dispatch
         (\_ -> pure unit)
         (runIncInterp store)
         store
@@ -177,7 +172,7 @@ testSuite =
 
     test "incremental interpreter" $ do
       store <- mkStore 0
-      _ <- liftEff $ dispatchP
+      _ <- liftEffect $ dispatchP
         (\_ -> pure unit)
         (runIncInterp store)
         store
@@ -197,15 +192,15 @@ testSuite =
       assert ("store should increment " <> show state3 <> " expected 3") (state3 == 3)
 
     test "runSubscriptions" $ do
-      liftEff $ set counter 0
+      liftEffect $ setCounter 0
       store <- mkStore 0
       _ <- subscribe store
         (\_ -> do
-          c <- get counter
-          set counter (c + 1)
+          c <- getCounter
+          setCounter (c + 1)
           pure unit
         )
-      _ <- liftEff $ dispatchP
+      _ <- liftEffect $ dispatchP
         (\_ -> pure unit)
         (runIncWithSubsInterp store)
         store
@@ -213,6 +208,6 @@ testSuite =
           _ <- incrementSync 1
           incrementSync 1
       state <- getState store
-      c <- liftEff $ get counter
+      c <- liftEffect $ getCounter
       assert ("counter: got: " <> show c <> " expected: 2") $ c == 2
 

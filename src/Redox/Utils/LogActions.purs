@@ -3,25 +3,24 @@ module Redox.Utils.LogActions
   , logActions
   ) where
 
-import Control.Monad.Aff (Aff)
-import Control.Monad.Aff.Console (log)
-import Control.Monad.Eff (Eff, kind Effect)
-import Control.Monad.Eff.Console (log) as Eff
+import Effect.Aff (Aff)
+import Effect.Console (log)
 import Data.Maybe (fromJust)
-import Data.StrMap as SM
 import Data.Symbol (SProxy(..))
+import Data.Map as Map
 import Partial.Unsafe (unsafePartial)
 import Prelude ((*>), (<<<))
 import Type.Data.Symbol (class IsSymbol, reflectSymbol)
 import Type.Row (class ListToRow, class RowToList, Cons, Nil, kind RowList)
 import Unsafe.Coerce (unsafeCoerce)
+import Effect
 
 unsafeGet
   :: forall r a
    . String
   -> Record r
   -> a
-unsafeGet s = unsafePartial fromJust <<< SM.lookup s <<< unsafeCoerce
+unsafeGet s = unsafePartial fromJust <<< Map.lookup s <<< unsafeCoerce
 
 unsafeSet
   :: forall r1 r2 a
@@ -29,7 +28,7 @@ unsafeSet
   -> a
   -> Record r1
   -> Record r2
-unsafeSet s a = unsafeCoerce <<< SM.insert s a <<< unsafeCoerce
+unsafeSet s a = unsafeCoerce <<< Map.insert s a <<< unsafeCoerce
 
 class LogActions (il :: RowList) (ol :: RowList) where
   logActions
@@ -52,7 +51,7 @@ instance logActionsAffCons
      , RowToList tor to
      , ListToRow to tor
      )
-  => LogActions (Cons name (Aff ei a) ti) (Cons name (Aff eo a) to) where
+  => LogActions (Cons name (Aff a) ti) (Cons name (Aff a) to) where
   logActions r = unsafeCoerce (unsafeSet n (log n *> unsafeGet n r) tor)
     where
       n :: String
@@ -68,8 +67,8 @@ instance logActionsEffCons
      , RowToList tor to
      , ListToRow to tor
      )
-  => LogActions (Cons name (Eff e a) ti) (Cons name (Eff e a) to) where
-  logActions r = unsafeCoerce (unsafeSet n (Eff.log n *> unsafeGet n r) tor)
+  => LogActions (Cons name (Effect a) ti) (Cons name (Effect a) to) where
+  logActions r = unsafeCoerce (unsafeSet n (log n *> unsafeGet n r) tor)
     where
       n :: String
       n = reflectSymbol (SProxy :: SProxy name)
@@ -84,7 +83,7 @@ instance logActionsF1AffCons
      , RowToList tor to
      , ListToRow to tor
      )
-  => LogActions (Cons name (x -> Aff e a) ti) (Cons name (x -> Aff eo a) to) where
+  => LogActions (Cons name (x -> Aff a) ti) (Cons name (x -> Aff a) to) where
   logActions r = unsafeCoerce (unsafeSet n (\x -> log n *> unsafeGet n r x) tor)
     where
       n :: String
@@ -100,7 +99,7 @@ instance logActionsF2AffCons
      , RowToList tor to
      , ListToRow to tor
      )
-  => LogActions (Cons name (x1 -> x2 -> Aff e a) ti) (Cons name (x1 -> x2 -> Aff eo a) to) where
+  => LogActions (Cons name (x1 -> x2 -> Aff a) ti) (Cons name (x1 -> x2 -> Aff a) to) where
   logActions r = unsafeCoerce (unsafeSet n (\x1 x2 -> log n *> unsafeGet n r x1 x2) tor)
     where
       n :: String
@@ -116,7 +115,7 @@ instance logActionsF3AffCons
      , RowToList tor to
      , ListToRow to tor
      )
-  => LogActions (Cons name (x1 -> x2 -> x3 -> Aff e a) ti) (Cons name (x1 -> x2 -> x3 -> Aff eo a) to) where
+  => LogActions (Cons name (x1 -> x2 -> x3 -> Aff a) ti) (Cons name (x1 -> x2 -> x3 -> Aff a) to) where
   logActions r = unsafeCoerce (unsafeSet n (\x1 x2 x3 -> log n *> unsafeGet n r x1 x2 x3) tor)
     where
       n :: String
@@ -132,7 +131,7 @@ instance logActionsF4AffCons
      , RowToList tor to
      , ListToRow to tor
      )
-     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> Aff e a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> Aff eo a) to) where
+     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> Aff a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> Aff a) to) where
   logActions r = unsafeCoerce (unsafeSet n (\x1 x2 x3 x4 -> log n *> unsafeGet n r x1 x2 x3 x4) tor)
     where
       n :: String
@@ -148,7 +147,7 @@ instance logActionsF5AffCons
      , RowToList tor to
      , ListToRow to tor
      )
-     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> Aff e a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> Aff eo a) to) where
+     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> Aff a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> Aff a) to) where
   logActions r = unsafeCoerce (unsafeSet n (\x1 x2 x3 x4 x5 -> log n *> unsafeGet n r x1 x2 x3 x4 x5) tor)
     where
       n :: String
@@ -164,7 +163,7 @@ instance logActionsF6AffCons
      , RowToList tor to
      , ListToRow to tor
      )
-     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> Aff e a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> Aff eo a) to) where
+     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> Aff a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> Aff a) to) where
   logActions r = unsafeCoerce (unsafeSet n (\x1 x2 x3 x4 x5 x6 -> log n *> unsafeGet n r x1 x2 x3 x4 x5 x6) tor)
     where
       n :: String
@@ -180,7 +179,7 @@ instance logActionsF7AffCons
      , RowToList tor to
      , ListToRow to tor
      )
-     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> Aff e a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> Aff eo a) to) where
+     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> Aff a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> Aff a) to) where
   logActions r = unsafeCoerce (unsafeSet n (\x1 x2 x3 x4 x5 x6 x7 -> log n *> unsafeGet n r x1 x2 x3 x4 x5 x6 x7) tor)
     where
       n :: String
@@ -196,7 +195,7 @@ instance logActionsF8AffCons
      , RowToList tor to
      , ListToRow to tor
      )
-     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> x8 -> Aff e a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> x8 -> Aff eo a) to) where
+     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> x8 -> Aff a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> x8 -> Aff a) to) where
   logActions r = unsafeCoerce (unsafeSet n (\x1 x2 x3 x4 x5 x6 x7 x8 -> log n *> unsafeGet n r x1 x2 x3 x4 x5 x6 x7 x8) tor)
     where
       n :: String
@@ -212,7 +211,7 @@ instance logActionsF9AffCons
      , RowToList tor to
      , ListToRow to tor
      )
-     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> x8 -> x9 -> Aff e a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> x8 -> x9 -> Aff eo a) to) where
+     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> x8 -> x9 -> Aff a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> x8 -> x9 -> Aff a) to) where
   logActions r = unsafeCoerce (unsafeSet n (\x1 x2 x3 x4 x5 x6 x7 x8 x9 -> log n *> unsafeGet n r x1 x2 x3 x4 x5 x6 x7 x8 x9) tor)
     where
       n :: String
@@ -228,7 +227,7 @@ instance logActionsF10AffCons
      , RowToList tor to
      , ListToRow to tor
      )
-     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> x8 -> x9 -> x10 -> Aff e a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> x8 -> x9 -> x10 -> Aff eo a) to) where
+     => LogActions (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> x8 -> x9 -> x10 -> Aff a) ti) (Cons name (x1 -> x2 -> x3 -> x4 -> x5 -> x6 -> x7 -> x8 -> x9 -> x10 -> Aff a) to) where
   logActions r = unsafeCoerce (unsafeSet n (\x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 -> log n *> unsafeGet n r x1 x2 x3 x4 x5 x6 x7 x8 x9 x10) tor)
     where
       n :: String

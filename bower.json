@@ -13,16 +13,16 @@
     "examples"
   ],
   "dependencies": {
-    "purescript-prelude": "^3.0.0",
-    "purescript-console": "^3.0.0",
-    "purescript-free": "^4.0.0",
-    "purescript-aff": "^4.0.0",
-    "purescript-typelevel-prelude": "^2.3.1"
+    "purescript-prelude": "^4.1.0",
+    "purescript-console": "^4.1.0",
+    "purescript-free": "^5.1.0",
+    "purescript-aff": "^5.0.2",
+    "purescript-ordered-collections": "^1.4.0",
+    "purescript-typelevel-prelude": "^3.0.0"
   },
   "devDependencies": {
-    "purescript-debug": "^3.0.0",
-    "purescript-psci-support": "^3.0.0",
-    "purescript-test-unit": "^13.0.0",
-    "purescript-var": "^2.0.0"
+    "purescript-debug": "^4.0.0",
+    "purescript-psci-support": "^4.0.0",
+    "purescript-test-unit": "^14.0.0"
   }
 }

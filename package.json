@@ -1,6 +1,6 @@
 {
   "name": "purescript-redox",
-  "version": "5.0.0",
+  "version": "6.0.0",
   "description": "Redux implementation for PureScript apps.",
   "main": "index.js",
   "directories": {
@@ -28,6 +28,6 @@
   },
   "homepage": "https://github.com/coot/purescript-redox#readme",
   "devDependencies": {
-    "pulp": "^11.0.0"
+    "pulp": "^12.3.0"
   }
 }
