@@ -1,6 +1,5 @@
 module Redox.Store
-  (
-   Store
+  ( Store
   , SubscriptionId(..)
   , getState
   , getSubscriptions

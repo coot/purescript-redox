@@ -15,7 +15,6 @@ import Data.Traversable (traverse_)
 import Redox.Store (Store, getState, getSubscriptions, setState)
 import Effect (Effect)
 
--- type Interpret dsl state eff = Free dsl (state -> state) -> state -> Aff eff state
 type Interpret dsl state = Free dsl (state -> state) -> state -> Aff state
 
 _dispatch
